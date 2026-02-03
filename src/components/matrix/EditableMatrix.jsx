@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { InvokeLLM } from "@/api/integrations";
 import { Edit3, Plus, Trash2, Save, X, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel }) {
+  const { toast } = useToast();
   const [editedMatrix, setEditedMatrix] = useState(JSON.parse(JSON.stringify(matrix || {})));
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -115,6 +117,11 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
       setEditedMatrix(updated);
     } catch (error) {
       console.error("Error generating column:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate column. Please try again.",
+        variant: "destructive",
+      });
     }
     
     setIsGenerating(false);

@@ -3,35 +3,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Mail, Lock } from 'lucide-react';
+import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
+import { apiClient } from '@/api/apiClient';
 
 export default function SuperAdminLogin({ open, onClose, onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Super Admin credentials
-  const SUPER_ADMIN_EMAIL = 'Kevin@repeatable.ai';
-  const SUPER_ADMIN_PASSWORD = 'Merwan.1894';
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    // Case-insensitive email comparison
-    if (email.trim().toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && password === SUPER_ADMIN_PASSWORD) {
-      const superAdminUser = {
-        id: 'super-admin-1',
-        email: SUPER_ADMIN_EMAIL,
-        name: 'Kevin - Repeatable AI Admin',
-        job_title: 'Super Administrator',
-        role_id: 'super-admin',
-        userType: 'superadmin',
-        isPermanent: true,
-      };
-      onLogin(superAdminUser);
-    } else {
-      setError('Invalid email or password');
+    try {
+      const result = await apiClient.auth.loginWithPassword(
+        email.trim().toLowerCase(),
+        password
+      );
+      onLogin(result.user);
+    } catch (err) {
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -69,6 +64,7 @@ export default function SuperAdminLogin({ open, onClose, onLogin }) {
               className="bg-white/10 border-white/20 text-white placeholder-blue-300 focus:bg-white/20"
               required
               autoFocus
+              disabled={isLoading}
             />
           </div>
 
@@ -85,20 +81,26 @@ export default function SuperAdminLogin({ open, onClose, onLogin }) {
               onChange={(e) => setPassword(e.target.value)}
               className="bg-white/10 border-white/20 text-white placeholder-blue-300 focus:bg-white/20"
               required
+              disabled={isLoading}
             />
           </div>
-
 
           <Button
             type="submit"
             className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white"
-            disabled={!email.trim() || !password}
+            disabled={!email.trim() || !password || isLoading}
           >
-            Sign In as Super Admin
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In as Super Admin'
+            )}
           </Button>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
-

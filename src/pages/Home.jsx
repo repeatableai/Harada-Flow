@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Company } from "@/api/entities";
 import { User } from "@/api/entities";
 import { sanitizeAndConformMatrix } from "../components/common/MatrixSanitizer";
@@ -10,9 +11,21 @@ import DeliverableCreatorStep from "../components/flow/DeliverableCreatorStep";
 import LoadingOverlay from "../components/common/LoadingOverlay";
 
 export default function HomePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState('loading'); // loading, welcome, builder, creator
   const [company, setCompany] = useState(null);
   const [user, setUser] = useState(null);
+
+  // Check for start=new parameter and trigger welcome step
+  useEffect(() => {
+    const startParam = searchParams.get('start');
+    if (startParam === 'new') {
+      setCompany(null);
+      setStep('welcome');
+      // Clear the search param after handling
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     // Check if there's an existing session to resume for the current user
@@ -20,15 +33,13 @@ export default function HomePage() {
       try {
         const currentUser = await User.me();
         setUser(currentUser);
-        
+
+        // Skip loading if start=new is set (handled by the other useEffect)
         const urlParams = new URLSearchParams(window.location.search);
-        const forceWelcome = urlParams.get('start') === 'new';
-        
-        if (forceWelcome) {
-          setStep('welcome');
+        if (urlParams.get('start') === 'new') {
           return;
         }
-        
+
         const userCompanies = await Company.filter({ created_by: currentUser.email }, "-created_date", 1);
         
         if (userCompanies.length > 0) {
@@ -101,7 +112,31 @@ export default function HomePage() {
       };
       setCompany(conformedCompany);
       setStep('builder');
-  }
+  };
+
+  const handleLoadSession = (session) => {
+    const conformedCompany = {
+      ...session,
+      productivity_matrix: sanitizeAndConformMatrix(session.productivity_matrix, 'productivity'),
+      performance_matrix: sanitizeAndConformMatrix(session.performance_matrix, 'performance'),
+    };
+    setCompany(conformedCompany);
+
+    // Go to appropriate step based on session state
+    if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
+      setStep('builder');
+    } else {
+      setStep('creator');
+    }
+  };
+
+  const handleDeleteSession = (sessionId) => {
+    // If deleted session is the current one, go back to welcome
+    if (company?.id === sessionId) {
+      setCompany(null);
+      setStep('welcome');
+    }
+  };
 
   const renderStep = () => {
     switch (step) {
@@ -110,7 +145,14 @@ export default function HomePage() {
       case 'builder':
         return <MatrixBuilderStep company={company} onMatricesFinalized={handleMatricesFinalized} onStartOver={handleStartOver} />;
       case 'creator':
-        return <DeliverableCreatorStep company={company} onStartOver={handleGoToBuilder} />;
+        return (
+          <DeliverableCreatorStep
+            company={company}
+            onStartOver={handleGoToBuilder}
+            onLoadSession={handleLoadSession}
+            onDeleteSession={handleDeleteSession}
+          />
+        );
       case 'loading':
       default:
         return <LoadingOverlay message="Loading your session..." />;

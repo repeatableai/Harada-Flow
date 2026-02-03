@@ -2,7 +2,7 @@
 import { useState, useEffect, createContext, useContext } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 300; // 300ms for animation to complete
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -110,7 +110,7 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
+function toast({ duration = 3000, ...props }) {
   const id = genId();
 
   const update = (props) =>
@@ -128,11 +128,15 @@ function toast({ ...props }) {
       ...props,
       id,
       open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss();
-      },
     },
   });
+
+  // Auto-dismiss after duration
+  if (duration > 0) {
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
 
   return {
     id,

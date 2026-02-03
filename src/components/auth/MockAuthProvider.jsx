@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import AuthTypeSelector from './AuthTypeSelector';
 import SuperAdminLogin from './SuperAdminLogin';
 import UserLogin from './UserLogin';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 export default function MockAuthProvider({ children }) {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -14,9 +14,17 @@ export default function MockAuthProvider({ children }) {
     // Check if we're in mock mode
     const isLocalhost = typeof window !== 'undefined' && 
       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    
+    let mockModeFlag = false;
+    try {
+      mockModeFlag = localStorage.getItem('base44_mock_mode') === 'true';
+    } catch (error) {
+      console.error('localStorage access failed (MockAuthProvider):', error);
+    }
+    
     const useMockMode = isLocalhost && (
       new URLSearchParams(window.location.search).get('mock') === 'true' ||
-      localStorage.getItem('base44_mock_mode') === 'true'
+      mockModeFlag
     );
 
     if (!useMockMode) {
@@ -27,7 +35,16 @@ export default function MockAuthProvider({ children }) {
     // Check authentication status and expiration
     const checkAuth = async () => {
       try {
-        const stored = localStorage.getItem('mock_base44_user');
+        let stored;
+        try {
+          stored = localStorage.getItem('mock_base44_user');
+        } catch (error) {
+          console.error('localStorage access failed (checkAuth):', error);
+          setIsAuthenticated(false);
+          setShowAuthDialog(true);
+          return;
+        }
+        
         if (!stored) {
           setIsAuthenticated(false);
           setShowAuthDialog(true);
@@ -40,7 +57,11 @@ export default function MockAuthProvider({ children }) {
         if (!user.isPermanent && user.expiresAt) {
           if (Date.now() > user.expiresAt) {
             // Session expired
-            localStorage.removeItem('mock_base44_user');
+            try {
+              localStorage.removeItem('mock_base44_user');
+            } catch (error) {
+              console.error('localStorage remove failed (checkAuth):', error);
+            }
             setIsAuthenticated(false);
             setShowAuthDialog(true);
             return;
@@ -53,6 +74,7 @@ export default function MockAuthProvider({ children }) {
           setShowAuthDialog(true);
         }
       } catch (error) {
+        console.error('Authentication check failed:', error);
         setIsAuthenticated(false);
         setShowAuthDialog(true);
       }
@@ -75,12 +97,21 @@ export default function MockAuthProvider({ children }) {
 
   const handleLogin = (user) => {
     // Store user in localStorage
-    localStorage.setItem('mock_base44_user', JSON.stringify(user));
-    setIsAuthenticated(true);
-    setShowAuthDialog(false);
-    setAuthStep('selector');
-    // Reload to refresh auth state
-    window.location.reload();
+    try {
+      localStorage.setItem('mock_base44_user', JSON.stringify(user));
+      setIsAuthenticated(true);
+      setShowAuthDialog(false);
+      setAuthStep('selector');
+      // Reload to refresh auth state
+      window.location.reload();
+    } catch (error) {
+      console.error('localStorage write failed (handleLogin):', error);
+      // Still set authenticated state even if localStorage fails
+      setIsAuthenticated(true);
+      setShowAuthDialog(false);
+      setAuthStep('selector');
+      window.location.reload();
+    }
   };
 
   const handleSelectType = (type) => {
@@ -103,32 +134,33 @@ export default function MockAuthProvider({ children }) {
   // Show auth dialog if not authenticated in mock mode
   if (isAuthenticated === false) {
     return (
-      <>
-        {children}
-        <Dialog open={showAuthDialog} onOpenChange={handleClose}>
-          <DialogContent className="sm:max-w-lg bg-transparent border-none shadow-none p-0">
-            {authStep === 'selector' && (
-              <div className="bg-white/10 backdrop-blur-lg border-white/20 rounded-lg p-6">
-                <AuthTypeSelector onSelectType={handleSelectType} />
-              </div>
-            )}
-            {authStep === 'superadmin' && (
-              <SuperAdminLogin 
-                open={true}
-                onClose={handleBackToSelector}
-                onLogin={handleLogin}
-              />
-            )}
-            {authStep === 'user' && (
-              <UserLogin 
-                open={true}
-                onClose={handleBackToSelector}
-                onLogin={handleLogin}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-      </>
+      <Dialog open={showAuthDialog} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-lg bg-transparent border-none shadow-none p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Select Company</DialogTitle>
+            <DialogDescription>Choose which company to work with</DialogDescription>
+          </DialogHeader>
+          {authStep === 'selector' && (
+            <div className="bg-white/10 backdrop-blur-lg border-white/20 rounded-lg p-6">
+              <AuthTypeSelector onSelectType={handleSelectType} />
+            </div>
+          )}
+          {authStep === 'superadmin' && (
+            <SuperAdminLogin 
+              open={true}
+              onClose={handleBackToSelector}
+              onLogin={handleLogin}
+            />
+          )}
+          {authStep === 'user' && (
+            <UserLogin 
+              open={true}
+              onClose={handleBackToSelector}
+              onLogin={handleLogin}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     );
   }
 

@@ -1,5 +1,5 @@
 static_sites:
-  - name: harada-flow
+  - name: role-deliverable-matrices
     buildCommand: npm run build
     staticPublishPath: dist
     routes:

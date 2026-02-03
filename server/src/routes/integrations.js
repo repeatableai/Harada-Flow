@@ -1,0 +1,54 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { authenticate } from '../middleware/auth.js';
+import { invokeLLM } from '../services/llm.service.js';
+
+const router = Router();
+
+// All routes require authentication
+router.use(authenticate);
+
+// Validation schema for InvokeLLM
+const invokeLLMSchema = z.object({
+  prompt: z.string().min(1, 'Prompt is required'),
+  response_json_schema: z.any().optional(),
+  add_context_from_internet: z.boolean().optional(),
+  company_url: z.string().optional(),
+  // Time study tracking params
+  operationType: z.string().optional(),
+  operationName: z.string().optional(),
+  companyId: z.string().optional(),
+  // Dynamic baseline params
+  industry: z.string().optional(),
+  companySize: z.string().optional(),
+  deliverableName: z.string().optional(),
+});
+
+// POST /api/integrations/llm - Invoke LLM
+router.post('/llm', async (req, res, next) => {
+  try {
+    const data = invokeLLMSchema.parse(req.body);
+
+    const result = await invokeLLM({
+      prompt: data.prompt,
+      response_json_schema: data.response_json_schema,
+      add_context_from_internet: data.add_context_from_internet,
+      company_url: data.company_url,
+      // Time study tracking - userId from auth middleware
+      operationType: data.operationType,
+      operationName: data.operationName,
+      companyId: data.companyId,
+      userId: req.user.id,
+      // Dynamic baseline params
+      industry: data.industry,
+      companySize: data.companySize,
+      deliverableName: data.deliverableName,
+    });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

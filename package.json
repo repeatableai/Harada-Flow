@@ -1,16 +1,17 @@
 {
-  "name": "base44-app",
+  "name": "role-deliverable-matrices",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
-    "@base44/sdk": "^0.1.2",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -64,6 +65,7 @@
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@flydotio/dockerfile": "^0.7.8",
+    "@playwright/test": "^1.58.1",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",

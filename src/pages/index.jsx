@@ -1,13 +1,13 @@
 import Layout from "./Layout.jsx";
 
 import Home from "./Home";
+import AdminDashboard from "./AdminDashboard";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
-    
     Home: Home,
-    
+    AdminDashboard: AdminDashboard,
 }
 
 function _getCurrentPage(url) {
@@ -30,13 +30,11 @@ function PagesContent() {
     
     return (
         <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Home />} />
-                
-                
+            <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/home" element={<Home />} />
                 <Route path="/Home" element={<Home />} />
-                
+                <Route path="/admin" element={<AdminDashboard />} />
             </Routes>
         </Layout>
     );

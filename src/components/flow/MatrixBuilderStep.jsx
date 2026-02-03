@@ -8,12 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Edit3, Plus, Trash2, CheckCircle, ArrowRight, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { sanitizeAndConformMatrix } from "../common/MatrixSanitizer";
+import { useToast } from "@/components/ui/use-toast";
 
 import MatrixDisplay from "../matrix/MatrixDisplay";
 import EditableMatrix from "../matrix/EditableMatrix";
 import LoadingOverlay from "../common/LoadingOverlay";
 
 export default function MatrixBuilderStep({ company, onMatricesFinalized, onStartOver }) {
+  const { toast } = useToast();
   const [currentCompany, setCurrentCompany] = useState(company);
   const [productivityMatrix, setProductivityMatrix] = useState(company?.productivity_matrix || null);
   const [performanceMatrix, setPerformanceMatrix] = useState(company?.performance_matrix || null);
@@ -66,7 +68,15 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
       const rawProductivityResult = await InvokeLLM({
         prompt: productivityPrompt,
         add_context_from_internet: !!currentCompany.company_url,
-        response_json_schema: productivitySchema
+        company_url: currentCompany.company_url,
+        response_json_schema: productivitySchema,
+        // Time study tracking
+        operationType: 'productivity_matrix',
+        operationName: `${currentCompany.job_title} - ${currentCompany.industry}`,
+        companyId: currentCompany.id,
+        // Dynamic baseline params
+        industry: currentCompany.industry,
+        companySize: currentCompany.company_size,
       });
       const conformedProductivityMatrix = sanitizeAndConformMatrix(rawProductivityResult, 'productivity');
       setProductivityMatrix(conformedProductivityMatrix);
@@ -121,7 +131,15 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
       const rawPerformanceResult = await InvokeLLM({
         prompt: performancePrompt,
         add_context_from_internet: !!currentCompany.company_url,
-        response_json_schema: performanceSchema
+        company_url: currentCompany.company_url,
+        response_json_schema: performanceSchema,
+        // Time study tracking
+        operationType: 'performance_matrix',
+        operationName: `${currentCompany.job_title} - ${currentCompany.industry}`,
+        companyId: currentCompany.id,
+        // Dynamic baseline params
+        industry: currentCompany.industry,
+        companySize: currentCompany.company_size,
       });
       const conformedPerformanceMatrix = sanitizeAndConformMatrix(rawPerformanceResult, 'performance');
       setPerformanceMatrix(conformedPerformanceMatrix);
@@ -140,29 +158,43 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
 
     } catch (error) {
       console.error("Error generating matrices:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate matrices. Please try again.",
+        variant: "destructive",
+      });
     }
     
     setIsGenerating(false);
   };
 
   const handleMatrixUpdate = async (matrixType, updatedMatrix) => {
-    const conformedMatrix = sanitizeAndConformMatrix(updatedMatrix, matrixType);
-    const updatePayload = {};
-    let updatedCompanyData = { ...currentCompany };
+    try {
+      const conformedMatrix = sanitizeAndConformMatrix(updatedMatrix, matrixType);
+      const updatePayload = {};
+      let updatedCompanyData = { ...currentCompany };
 
-    if (matrixType === 'productivity') {
-      setProductivityMatrix(conformedMatrix);
-      updatePayload.productivity_matrix = conformedMatrix;
-      updatedCompanyData.productivity_matrix = conformedMatrix;
-    } else {
-      setPerformanceMatrix(conformedMatrix);
-      updatePayload.performance_matrix = conformedMatrix;
-      updatedCompanyData.performance_matrix = conformedMatrix;
+      if (matrixType === 'productivity') {
+        setProductivityMatrix(conformedMatrix);
+        updatePayload.productivity_matrix = conformedMatrix;
+        updatedCompanyData.productivity_matrix = conformedMatrix;
+      } else {
+        setPerformanceMatrix(conformedMatrix);
+        updatePayload.performance_matrix = conformedMatrix;
+        updatedCompanyData.performance_matrix = conformedMatrix;
+      }
+      
+      await Company.update(currentCompany.id, updatePayload);
+      setCurrentCompany(updatedCompanyData);
+      setEditingMatrix(null);
+    } catch (error) {
+      console.error("Error updating matrix:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update matrix. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    await Company.update(currentCompany.id, updatePayload);
-    setCurrentCompany(updatedCompanyData);
-    setEditingMatrix(null);
   };
   
   // No changes needed below this line

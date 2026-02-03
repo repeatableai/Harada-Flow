@@ -3,53 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Mail, Key, Clock, AlertCircle } from 'lucide-react';
+import { Mail, Key, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { apiClient } from '@/api/apiClient';
 
 export default function UserLogin({ open, onClose, onLogin }) {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [displayCode, setDisplayCode] = useState(''); // Code to show in UI when email not configured
   const [step, setStep] = useState('email'); // 'email' or 'code'
-  const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
-
-  // Check if email has already been used
-  const checkEmailUsed = (email) => {
-    const usedEmails = JSON.parse(localStorage.getItem('mock_used_emails') || '[]');
-    return usedEmails.includes(email.toLowerCase());
-  };
-
-  // Mark email as used
-  const markEmailAsUsed = (email) => {
-    const usedEmails = JSON.parse(localStorage.getItem('mock_used_emails') || '[]');
-    if (!usedEmails.includes(email.toLowerCase())) {
-      usedEmails.push(email.toLowerCase());
-      localStorage.setItem('mock_used_emails', JSON.stringify(usedEmails));
-    }
-  };
-
-  // Generate a 6-digit verification code
-  const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  // Send verification code (mock)
-  const sendVerificationCode = (email) => {
-    const code = generateVerificationCode();
-    setVerificationCode(code);
-    console.log(`[Mock] Verification code sent to ${email}: ${code}`);
-    
-    // Store code with expiration (5 minutes)
-    const codeData = {
-      code,
-      email: email.toLowerCase(),
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-    };
-    localStorage.setItem(`mock_verification_${email.toLowerCase()}`, JSON.stringify(codeData));
-    
-    // Start countdown
-    setCountdown(300); // 5 minutes in seconds
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   // Countdown timer
   useEffect(() => {
@@ -59,78 +23,66 @@ export default function UserLogin({ open, onClose, onLogin }) {
     }
   }, [countdown, step]);
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     const emailLower = email.toLowerCase().trim();
-    
+
     if (!emailLower) {
       setError('Please enter your email address');
+      setIsLoading(false);
       return;
     }
 
-    // Check if email has been used
-    if (checkEmailUsed(emailLower)) {
-      setError('This email has already been used. Each email can only be used once.');
-      return;
+    try {
+      const result = await apiClient.auth.emailVerify(emailLower);
+      setCountdown(result.expiresIn || 300); // 5 minutes default
+      if (result.displayInUI && result.code) {
+        setDisplayCode(result.code);
+      }
+      setStep('code');
+    } catch (err) {
+      setError(err.message || 'Failed to send verification code');
+    } finally {
+      setIsLoading(false);
     }
-
-    // Send verification code
-    sendVerificationCode(emailLower);
-    setStep('code');
   };
 
-  const handleCodeSubmit = (e) => {
+  const handleCodeSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
     const emailLower = email.toLowerCase().trim();
-    const storedCodeData = localStorage.getItem(`mock_verification_${emailLower}`);
-    
-    if (!storedCodeData) {
-      setError('Verification code expired. Please request a new one.');
-      return;
+
+    try {
+      const result = await apiClient.auth.verifyCode(emailLower, code.trim());
+      onLogin(result.user);
+    } catch (err) {
+      setError(err.message || 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
     }
-
-    const { code: storedCode, expiresAt } = JSON.parse(storedCodeData);
-    
-    if (Date.now() > expiresAt) {
-      setError('Verification code expired. Please request a new one.');
-      localStorage.removeItem(`mock_verification_${emailLower}`);
-      return;
-    }
-
-    if (code.trim() !== storedCode) {
-      setError('Invalid verification code');
-      return;
-    }
-
-    // Code is valid - create user session
-    const user = {
-      id: `user-${Date.now()}`,
-      email: emailLower,
-      name: emailLower.split('@')[0], // Use email prefix as name
-      job_title: 'User',
-      role_id: null,
-      userType: 'user',
-      isPermanent: false,
-      expiresAt: Date.now() + 72 * 60 * 60 * 1000, // 72 hours from now
-    };
-
-    // Mark email as used
-    markEmailAsUsed(emailLower);
-    
-    // Clean up verification code
-    localStorage.removeItem(`mock_verification_${emailLower}`);
-    
-    onLogin(user);
   };
 
-  const handleResendCode = () => {
+  const handleResendCode = async () => {
     setError('');
     setCode('');
-    sendVerificationCode(email.toLowerCase().trim());
+    setIsLoading(true);
+
+    try {
+      const result = await apiClient.auth.emailVerify(email.toLowerCase().trim());
+      setCountdown(result.expiresIn || 300);
+      if (result.displayInUI && result.code) {
+        setDisplayCode(result.code);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to resend code');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -179,15 +131,23 @@ export default function UserLogin({ open, onClose, onLogin }) {
                 className="bg-white/10 border-white/20 text-white placeholder-blue-300 focus:bg-white/20"
                 required
                 autoFocus
+                disabled={isLoading}
               />
             </div>
 
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white"
-              disabled={!email.trim()}
+              disabled={!email.trim() || isLoading}
             >
-              Send Verification Code
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Verification Code'
+              )}
             </Button>
 
             <p className="text-xs text-center text-blue-300">
@@ -208,7 +168,7 @@ export default function UserLogin({ open, onClose, onLogin }) {
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-200">
               <div className="flex items-center gap-2 mb-1">
                 <Mail className="w-3 h-3" />
-                <strong>Code sent to:</strong> {email}
+                <strong>Verification for:</strong> {email}
               </div>
               {countdown > 0 && (
                 <div className="flex items-center gap-2 mt-2">
@@ -216,9 +176,12 @@ export default function UserLogin({ open, onClose, onLogin }) {
                   <span>Code expires in: {formatTime(countdown)}</span>
                 </div>
               )}
-              {process.env.NODE_ENV === 'development' && verificationCode && (
-                <div className="mt-2 p-2 bg-white/5 rounded text-center font-mono text-white">
-                  <strong>Dev Code:</strong> {verificationCode}
+              {displayCode && (
+                <div className="mt-3 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-white/10">
+                  <p className="text-blue-200 text-xs mb-1 text-center">Your verification code:</p>
+                  <p className="text-white text-2xl font-mono font-bold text-center tracking-widest">
+                    {displayCode}
+                  </p>
                 </div>
               )}
             </div>
@@ -238,6 +201,7 @@ export default function UserLogin({ open, onClose, onLogin }) {
                 maxLength={6}
                 required
                 autoFocus
+                disabled={isLoading}
               />
             </div>
 
@@ -248,19 +212,28 @@ export default function UserLogin({ open, onClose, onLogin }) {
                 onClick={() => {
                   setStep('email');
                   setCode('');
+                  setDisplayCode('');
                   setError('');
                   setCountdown(0);
                 }}
                 className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                disabled={isLoading}
               >
                 Back
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white"
-                disabled={code.length !== 6}
+                disabled={code.length !== 6 || isLoading}
               >
-                Verify & Sign In
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  'Verify & Sign In'
+                )}
               </Button>
             </div>
 
@@ -269,7 +242,7 @@ export default function UserLogin({ open, onClose, onLogin }) {
               variant="ghost"
               onClick={handleResendCode}
               className="w-full text-blue-300 hover:text-blue-200 hover:bg-blue-500/10"
-              disabled={countdown > 240} // Can resend after 1 minute
+              disabled={countdown > 240 || isLoading}
             >
               Resend Code
             </Button>
@@ -279,4 +252,3 @@ export default function UserLogin({ open, onClose, onLogin }) {
     </Dialog>
   );
 }
-

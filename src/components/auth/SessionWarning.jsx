@@ -2,22 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from './AuthProvider';
 
 export default function SessionWarning() {
+  const { user } = useAuth();
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
     const checkSession = () => {
-      const stored = localStorage.getItem('mock_base44_user');
-      if (!stored) return;
+      if (!user) return;
 
-      const user = JSON.parse(stored);
-      
       // Only show warning for non-permanent users
       if (!user.isPermanent && user.expiresAt) {
         const remaining = user.expiresAt - Date.now();
-        
+
         if (remaining > 0) {
           // Show warning if less than 24 hours remaining
           if (remaining < 24 * 60 * 60 * 1000) {
@@ -39,12 +38,12 @@ export default function SessionWarning() {
     const interval = setInterval(checkSession, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const formatTimeRemaining = (ms) => {
     const hours = Math.floor(ms / (1000 * 60 * 60));
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
@@ -58,7 +57,7 @@ export default function SessionWarning() {
       <Clock className="h-4 w-4" />
       <AlertDescription className="flex items-center justify-between">
         <span>
-          Your session expires in <strong>{formatTimeRemaining(timeRemaining)}</strong>. 
+          Your session expires in <strong>{formatTimeRemaining(timeRemaining)}</strong>.
           This is a one-time access session.
         </span>
         <Button
@@ -73,4 +72,3 @@ export default function SessionWarning() {
     </Alert>
   );
 }
-

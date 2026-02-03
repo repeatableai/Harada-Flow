@@ -1,34 +1,26 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, RefreshCw, LogOut, Shield, User } from "lucide-react";
+import { LayoutGrid, RefreshCw, LogOut, Shield, User, Settings } from "lucide-react";
 import { usePermissions } from "@/components/common/usePermissions";
 import SessionWarning from "@/components/auth/SessionWarning";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function Layout({ children }) {
   const { hasPermission, isLoading } = usePermissions();
-  const [currentUser, setCurrentUser] = useState(null);
-  
-  useEffect(() => {
-    // Get current user info for display
-    const stored = localStorage.getItem('mock_base44_user');
-    if (stored) {
-      try {
-        const user = JSON.parse(stored);
-        setCurrentUser(user);
-      } catch (e) {
-        console.error('Error parsing user data:', e);
-      }
-    }
-  }, []);
-  
+  const { user: currentUser, logout } = useAuth();
+
+  const isAdmin = currentUser && (
+    currentUser.role === 'ADMIN' ||
+    currentUser.role === 'SUPER_ADMIN' ||
+    currentUser.userType === 'superadmin'
+  );
+
   const handleLogout = async () => {
-    // We import User entity directly here as it's a simple static call.
-    const { User } = await import("@/api/entities");
-    await User.logout();
+    await logout();
   };
 
   return (
@@ -85,9 +77,20 @@ export default function Layout({ children }) {
                   )}
                 </Badge>
               )}
-              <Link to={createPageUrl("Home?start=new")}>
-                  <Button 
-                    variant="outline" 
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button
+                    variant="outline"
+                    className="bg-purple-500/20 border-purple-400/30 text-purple-200 hover:bg-purple-500/30"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              <Link to="/?start=new">
+                  <Button
+                    variant="outline"
                     className="bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!isLoading && !hasPermission('can_start_new_role')}
                     title={!isLoading && !hasPermission('can_start_new_role') ? "You don't have permission to start a new role" : "Start a new role session"}

@@ -9,13 +9,19 @@ import {
 } from "@/components/ui/toast";
 
 export function Toaster() {
-  const { toasts } = useToast();
+  const { toasts, dismiss } = useToast();
+
+  // Immediately remove a toast (bypass queue)
+  const removeToast = (id) => {
+    dismiss(id);
+  };
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, open, onOpenChange, duration, ...props }) {
+        // Filter out non-DOM props before spreading
         return (
-          <Toast key={id} {...props}>
+          <Toast key={id} data-state={open ? "open" : "closed"} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
@@ -23,7 +29,7 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose />
+            <ToastClose onClick={() => removeToast(id)} />
           </Toast>
         );
       })}

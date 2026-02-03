@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?   // Null for email-verified users (regular users)
+  name          String?
+  jobTitle      String?   @map("job_title")
+  role          UserRole  @default(USER)
+  isPermanent   Boolean   @default(false) @map("is_permanent")
+  sessionExpiry DateTime? @map("session_expiry")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  companies     Company[]
+  sessions      Session[]
+  timeStudies   TimeStudy[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique @map("refresh_token")
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+model Company {
+  id                 String   @id @default(uuid())
+  jobTitle           String   @map("job_title")
+  industry           String
+  companySize        String   @map("company_size")
+  companyUrl         String?  @map("company_url")
+  productivityMatrix Json?    @map("productivity_matrix")
+  performanceMatrix  Json?    @map("performance_matrix")
+
+  userId             String   @map("user_id")
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy          String   @map("created_by") // User email for backwards compatibility
+
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  savedPrompts       SavedPrompt[]
+  timeStudies        TimeStudy[]
+
+  @@index([userId])
+  @@index([createdBy])
+  @@index([createdAt(sort: Desc)])
+  @@map("companies")
+}
+
+model SavedPrompt {
+  id              String   @id @default(uuid())
+  deliverableName String   @map("deliverable_name")
+  deliverableType String   @map("deliverable_type")  // 'productivity' | 'performance'
+  columnName      String?  @map("column_name")
+  overview        String   @db.Text
+  prompts         Json     // Array of {step, title, description, prompt}
+
+  companyId       String   @map("company_id")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@index([createdAt(sort: Desc)])
+  @@map("saved_prompts")
+}
+
+model VerificationCode {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([email, code])
+  @@index([email])
+  @@index([expiresAt])
+  @@map("verification_codes")
+}
+
+model UsedEmail {
+  id     String   @id @default(uuid())
+  email  String   @unique
+  usedAt DateTime @default(now()) @map("used_at")
+
+  @@map("used_emails")
+}
+
+model TimeStudy {
+  id                    String   @id @default(uuid())
+
+  // Operation type: 'productivity_matrix' | 'performance_matrix' | 'deliverable_prompts'
+  operationType         String   @map("operation_type")
+  operationName         String?  @map("operation_name")  // e.g., deliverable name or "Software Engineer - Tech"
+
+  // Time measurements (in minutes)
+  baselineManualMinutes Int      @map("baseline_manual_minutes")  // Auto-estimated
+  actualMinutes         Float    @map("actual_minutes")           // Measured (float for precision)
+  minutesSaved          Float    @map("minutes_saved")            // Calculated
+  percentReduction      Float    @map("percent_reduction")        // Calculated
+
+  // Context
+  companyId             String   @map("company_id")
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId                String   @map("user_id")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([operationType])
+  @@index([createdAt(sort: Desc)])
+  @@map("time_studies")
+}

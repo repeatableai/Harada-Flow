@@ -5,12 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Company } from "@/api/entities";
+import { Company, User as UserApi } from "@/api/entities";
 import { Sparkles, Building, User, Globe, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export default function WelcomeStep({ onCompanyCreated }) {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     job_title: "",
     industry: "",
@@ -18,23 +19,16 @@ export default function WelcomeStep({ onCompanyCreated }) {
     company_url: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        if (currentUser && currentUser.job_title) {
-          setFormData(prev => ({ ...prev, job_title: currentUser.job_title }));
-        }
-      } catch (error) {
-        console.warn("Could not fetch current user, or user is not logged in.", error);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-    fetchUser();
-  }, []);
+    // Pre-fill job title from user profile if available
+    if (currentUser && currentUser.jobTitle) {
+      setFormData(prev => ({ ...prev, job_title: currentUser.jobTitle }));
+    } else if (currentUser && currentUser.job_title) {
+      setFormData(prev => ({ ...prev, job_title: currentUser.job_title }));
+    }
+  }, [currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,9 +37,9 @@ export default function WelcomeStep({ onCompanyCreated }) {
     try {
       // First, create the company session record
       const newCompany = await Company.create(formData);
-      
+
       // Then, update the user's profile with the new job title non-blockingly
-      base44.auth.updateMe({ job_title: formData.job_title }).catch(err => {
+      UserApi.updateMe({ job_title: formData.job_title }).catch(err => {
         console.error("Failed to update user profile:", err);
       });
 

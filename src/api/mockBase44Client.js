@@ -14,18 +14,33 @@ const mockUser = {
 
 // Helper to get current mock user
 const getCurrentMockUser = () => {
-  const stored = localStorage.getItem('mock_base44_user');
-  return stored ? JSON.parse(stored) : mockUser;
+  try {
+    const stored = localStorage.getItem('mock_base44_user');
+    return stored ? JSON.parse(stored) : mockUser;
+  } catch (error) {
+    console.error('localStorage access failed (getCurrentMockUser):', error);
+    return mockUser;
+  }
 };
 
 // Mock storage for companies (persisted in localStorage)
 const getMockCompanies = () => {
-  const stored = localStorage.getItem('mock_base44_companies');
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = localStorage.getItem('mock_base44_companies');
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('localStorage access failed (getMockCompanies):', error);
+    return [];
+  }
 };
 
 const saveMockCompanies = (companies) => {
-  localStorage.setItem('mock_base44_companies', JSON.stringify(companies));
+  try {
+    localStorage.setItem('mock_base44_companies', JSON.stringify(companies));
+  } catch (error) {
+    console.error('localStorage write failed (saveMockCompanies):', error);
+    // Fallback: Could use sessionStorage or in-memory storage
+  }
 };
 
 // Mock entities
@@ -162,28 +177,42 @@ const mockIntegrations = {
 
 // Mock auth with localStorage persistence and expiration checking
 const getMockUser = () => {
-  const stored = localStorage.getItem('mock_base44_user');
-  if (!stored) return null;
-  
-  const user = JSON.parse(stored);
-  
-  // Check expiration for non-permanent users
-  if (!user.isPermanent && user.expiresAt) {
-    if (Date.now() > user.expiresAt) {
-      // Session expired
-      localStorage.removeItem('mock_base44_user');
-      return null;
+  try {
+    const stored = localStorage.getItem('mock_base44_user');
+    if (!stored) return null;
+    
+    const user = JSON.parse(stored);
+    
+    // Check expiration for non-permanent users
+    if (!user.isPermanent && user.expiresAt) {
+      if (Date.now() > user.expiresAt) {
+        // Session expired
+        try {
+          localStorage.removeItem('mock_base44_user');
+        } catch (error) {
+          console.error('localStorage remove failed (getMockUser):', error);
+        }
+        return null;
+      }
     }
+    
+    return user;
+  } catch (error) {
+    console.error('localStorage access failed (getMockUser):', error);
+    return null;
   }
-  
-  return user;
 };
 
 const setMockUser = (user) => {
-  if (user) {
-    localStorage.setItem('mock_base44_user', JSON.stringify(user));
-  } else {
-    localStorage.removeItem('mock_base44_user');
+  try {
+    if (user) {
+      localStorage.setItem('mock_base44_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('mock_base44_user');
+    }
+  } catch (error) {
+    console.error('localStorage write failed (setMockUser):', error);
+    // Fallback: Could use sessionStorage or in-memory storage
   }
 };
 
@@ -223,8 +252,8 @@ const mockAuth = {
   },
   logout: async () => {
     setMockUser(null);
-    // Reload to show login
-    window.location.href = window.location.pathname + '?mock=true';
+    // Reload to show login - preserve port
+    window.location.href = window.location.origin + window.location.pathname + '?mock=true';
   },
   setToken: (token) => {
     // In mock mode, we store user instead of token
