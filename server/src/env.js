@@ -2,21 +2,15 @@
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const envPath = resolve(__dirname, '..', '.env');
 
-// Parse and manually assign to process.env
-const result = dotenv.config({ path: envPath });
+// Load .env but DON'T override existing environment variables
+// This allows Render/production env vars to take precedence
+dotenv.config({ path: envPath });
 
-if (result.parsed) {
-  // Manually assign parsed values to process.env
-  for (const [key, value] of Object.entries(result.parsed)) {
-    process.env[key] = value;
-  }
-}
-
-console.log('Environment loaded from:', envPath);
-console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'loaded' : 'NOT loaded');
+console.log('Environment loaded');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'set' : 'NOT set');
+console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'set' : 'NOT set');
