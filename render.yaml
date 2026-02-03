@@ -1,7 +1,42 @@
-static_sites:
-  - name: role-deliverable-matrices
+databases:
+  - name: harada-db
+    databaseName: harada_flow
+    user: harada_user
+    plan: free
+
+services:
+  - type: web
+    name: harada-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: harada-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-4-5-20251101
+    healthCheckPath: /api/health
+
+staticSites:
+  - name: harada-flow
     buildCommand: npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
     routes:
       - type: rewrite
         source: /*
@@ -13,4 +48,3 @@ static_sites:
       - path: /*
         name: Content-Security-Policy
         value: "frame-ancestors *"
-

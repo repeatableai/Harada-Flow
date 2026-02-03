@@ -46,3 +46,10 @@ coverage
 # Playwright
 playwright-report/
 test-results/
+
+# Database exports (contains sensitive data)
+local_data.sql
+*.sql.backup
+
+# Server environment (never commit)
+server/.env
