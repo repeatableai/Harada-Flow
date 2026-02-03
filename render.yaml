@@ -30,10 +30,12 @@ services:
         value: claude-opus-4-5-20251101
     healthCheckPath: /api/health
 
-staticSites:
-  - name: harada-flow
+  - type: web
+    name: harada-flow
+    runtime: static
     buildCommand: npm run build
     staticPublishPath: dist
+    plan: free
     envVars:
       - key: VITE_API_URL
         sync: false
