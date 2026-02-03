@@ -74,4 +74,31 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
+// GET /api/admin/saved-prompts - List all saved prompts
+router.get('/saved-prompts', async (req, res, next) => {
+  try {
+    const { search, deliverableType, page, limit, sort } = req.query;
+    const result = await adminService.listAllSavedPrompts({
+      search,
+      deliverableType,
+      page,
+      limit,
+      sort,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/admin/saved-prompts/stats - Saved prompts statistics
+router.get('/saved-prompts/stats', async (req, res, next) => {
+  try {
+    const stats = await adminService.getSavedPromptStats();
+    res.json(stats);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

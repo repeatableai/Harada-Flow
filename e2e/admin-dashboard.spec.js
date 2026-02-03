@@ -231,6 +231,106 @@ test.describe('Admin Dashboard Full Test', () => {
     expect(accessibilityWarnings).toHaveLength(0);
   });
 
+  test('sessions tab sorting and saved prompts tab', async ({ page }) => {
+    const accessibilityWarnings = [];
+
+    page.on('console', (msg) => {
+      const text = msg.text();
+      if (msg.type() === 'warning' || msg.type() === 'error') {
+        if (text.includes('DialogContent') ||
+            text.includes('DialogTitle') ||
+            text.includes('aria-describedby') ||
+            text.includes('Missing Description')) {
+          accessibilityWarnings.push(text);
+        }
+      }
+    });
+
+    // Login
+    await page.goto('/');
+    await page.waitForTimeout(2000);
+
+    const superAdminBtn = page.locator('text=Super Admin').first();
+    await expect(superAdminBtn).toBeVisible({ timeout: 10000 });
+    await superAdminBtn.click();
+    await page.waitForTimeout(1000);
+
+    const emailInput = page.locator('#admin-email');
+    const passwordInput = page.locator('#admin-password');
+    await expect(emailInput).toBeVisible({ timeout: 5000 });
+    await emailInput.fill(SUPER_ADMIN.email);
+    await passwordInput.fill(SUPER_ADMIN.password);
+
+    const submitBtn = page.locator('button:has-text("Sign In as Super Admin")');
+    await submitBtn.click();
+    await page.waitForTimeout(5000);
+
+    // Navigate to admin dashboard
+    await page.goto('/admin');
+    await page.waitForTimeout(3000);
+
+    // Test Sessions tab sorting
+    console.log('Testing Sessions tab sorting...');
+    const sessionsTab = page.locator('button:has-text("Sessions")').first();
+    if (await sessionsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await sessionsTab.click();
+      await page.waitForTimeout(1000);
+
+      // Check for sort dropdown
+      const sortDropdown = page.locator('button:has-text("Newest First")').first();
+      if (await sortDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('Sessions sort dropdown found');
+        await sortDropdown.click();
+        await page.waitForTimeout(500);
+
+        // Select a different sort option
+        const sortOption = page.locator('text=Job Title A-Z').first();
+        if (await sortOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await sortOption.click();
+          await page.waitForTimeout(1000);
+          console.log('Changed sort to Job Title A-Z');
+        }
+      }
+    }
+
+    // Test Saved Prompts tab
+    console.log('Testing Saved Prompts tab...');
+    const savedPromptsTab = page.locator('button:has-text("Saved Prompts")').first();
+    if (await savedPromptsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await savedPromptsTab.click();
+      await page.waitForTimeout(2000);
+
+      // Check for filter dropdown
+      const filterDropdown = page.locator('button:has-text("All Types")').first();
+      if (await filterDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('Saved Prompts filter dropdown found');
+      }
+
+      // Check for sort dropdown
+      const sortDropdown = page.locator('button:has-text("Newest First")').first();
+      if (await sortDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('Saved Prompts sort dropdown found');
+      }
+
+      // Check for search input
+      const searchInput = page.locator('input[placeholder*="deliverable"]').first();
+      if (await searchInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('Saved Prompts search input found');
+      }
+
+      // Verify the table structure
+      const table = page.locator('table').first();
+      if (await table.isVisible({ timeout: 2000 }).catch(() => false)) {
+        console.log('Saved Prompts table found');
+      }
+    } else {
+      console.log('Saved Prompts tab not visible');
+    }
+
+    console.log('Sorting and Saved Prompts - Accessibility warnings:', accessibilityWarnings);
+    expect(accessibilityWarnings).toHaveLength(0);
+  });
+
   test('test user login dialog accessibility', async ({ page }) => {
     const accessibilityWarnings = [];
 

@@ -216,6 +216,125 @@ export async function getStats() {
   };
 }
 
+export async function listAllSavedPrompts(query = {}) {
+  const { search, deliverableType, page = 1, limit = 20, sort = '-createdAt' } = query;
+
+  // Handle sort field mapping
+  let orderByField = sort.startsWith('-') ? sort.slice(1) : sort;
+  const orderDirection = sort.startsWith('-') ? 'desc' : 'asc';
+
+  // Map frontend field names to database field names
+  const fieldMapping = {
+    createdAt: 'createdAt',
+    deliverableName: 'deliverableName',
+    deliverable_name: 'deliverableName',
+    deliverableType: 'deliverableType',
+    deliverable_type: 'deliverableType',
+  };
+
+  orderByField = fieldMapping[orderByField] || orderByField;
+  const orderBy = { [orderByField]: orderDirection };
+
+  const skip = (page - 1) * limit;
+
+  const where = {};
+
+  if (deliverableType) {
+    where.deliverableType = deliverableType;
+  }
+
+  if (search) {
+    where.OR = [
+      { deliverableName: { contains: search, mode: 'insensitive' } },
+      { columnName: { contains: search, mode: 'insensitive' } },
+      { overview: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const [prompts, total] = await Promise.all([
+    prisma.savedPrompt.findMany({
+      where,
+      orderBy,
+      take: parseInt(limit),
+      skip,
+      include: {
+        company: {
+          select: {
+            id: true,
+            jobTitle: true,
+            industry: true,
+            createdBy: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.savedPrompt.count({ where }),
+  ]);
+
+  return {
+    data: prompts.map(prompt => ({
+      id: prompt.id,
+      deliverable_name: prompt.deliverableName,
+      deliverable_type: prompt.deliverableType,
+      column_name: prompt.columnName,
+      overview: prompt.overview,
+      prompts: prompt.prompts,
+      company_id: prompt.companyId,
+      created_at: prompt.createdAt.toISOString(),
+      company: prompt.company ? {
+        id: prompt.company.id,
+        job_title: prompt.company.jobTitle,
+        industry: prompt.company.industry,
+        created_by: prompt.company.createdBy,
+        user: prompt.company.user,
+      } : null,
+    })),
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
+export async function getSavedPromptStats() {
+  const [
+    total,
+    byType,
+    recentCount,
+  ] = await Promise.all([
+    prisma.savedPrompt.count(),
+    prisma.savedPrompt.groupBy({
+      by: ['deliverableType'],
+      _count: true,
+    }),
+    prisma.savedPrompt.count({
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
+      },
+    }),
+  ]);
+
+  return {
+    total,
+    recentCount,
+    byType: byType.reduce((acc, item) => {
+      acc[item.deliverableType] = item._count;
+      return acc;
+    }, {}),
+  };
+}
+
 function formatCompanyResponse(company) {
   return {
     id: company.id,

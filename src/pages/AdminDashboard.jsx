@@ -23,7 +23,19 @@ import {
   Timer,
   TrendingUp,
   Zap,
+  FileText,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
@@ -43,6 +55,18 @@ export default function AdminDashboard() {
   const [timeStudyStats, setTimeStudyStats] = useState(null);
   const [timeStudyPage, setTimeStudyPage] = useState(1);
 
+  // Sorting state
+  const [companySort, setCompanySort] = useState('-createdAt');
+
+  // Saved Prompts state
+  const [savedPrompts, setSavedPrompts] = useState({ data: [], pagination: {} });
+  const [savedPromptsStats, setSavedPromptsStats] = useState(null);
+  const [savedPromptsPage, setSavedPromptsPage] = useState(1);
+  const [savedPromptsSort, setSavedPromptsSort] = useState('-createdAt');
+  const [savedPromptsFilter, setSavedPromptsFilter] = useState('all');
+  const [savedPromptsSearch, setSavedPromptsSearch] = useState('');
+  const [selectedPrompt, setSelectedPrompt] = useState(null);
+
   // Check admin access
   useEffect(() => {
     if (user && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.userType !== 'superadmin') {
@@ -54,9 +78,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadStats();
     loadUsers(1);
-    loadCompanies(1);
+    loadCompanies(1, '', companySort);
     loadTimeStudyStats();
     loadTimeStudies(1);
+    loadSavedPromptsStats();
+    loadSavedPrompts(1);
   }, []);
 
   const loadStats = async () => {
@@ -85,13 +111,14 @@ export default function AdminDashboard() {
     }
   };
 
-  const loadCompanies = async (page, search = '') => {
+  const loadCompanies = async (page, search = '', sort = companySort) => {
     setIsLoading(true);
     try {
       const data = await apiClient.admin.getCompanies({
         page,
         limit: 10,
         search: search || undefined,
+        sort,
       });
       setCompanies(data);
       setCompanyPage(page);
@@ -127,11 +154,58 @@ export default function AdminDashboard() {
     }
   };
 
+  const loadSavedPromptsStats = async () => {
+    try {
+      const data = await apiClient.admin.getSavedPromptsStats();
+      setSavedPromptsStats(data);
+    } catch (error) {
+      console.error('Failed to load saved prompts stats:', error);
+    }
+  };
+
+  const loadSavedPrompts = async (page, search = savedPromptsSearch, sort = savedPromptsSort, filter = savedPromptsFilter) => {
+    setIsLoading(true);
+    try {
+      const data = await apiClient.admin.getSavedPrompts({
+        page,
+        limit: 10,
+        search: search || undefined,
+        sort,
+        deliverableType: filter !== 'all' ? filter : undefined,
+      });
+      setSavedPrompts(data);
+      setSavedPromptsPage(page);
+    } catch (error) {
+      console.error('Failed to load saved prompts:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCompanySortChange = (newSort) => {
+    setCompanySort(newSort);
+    loadCompanies(1, searchQuery, newSort);
+  };
+
+  const handleSavedPromptsSortChange = (newSort) => {
+    setSavedPromptsSort(newSort);
+    loadSavedPrompts(1, savedPromptsSearch, newSort, savedPromptsFilter);
+  };
+
+  const handleSavedPromptsFilterChange = (newFilter) => {
+    setSavedPromptsFilter(newFilter);
+    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, newFilter);
+  };
+
+  const handleSavedPromptsSearch = () => {
+    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, savedPromptsFilter);
+  };
+
   const handleSearch = () => {
     if (activeTab === 'users') {
       loadUsers(1, searchQuery);
     } else if (activeTab === 'companies') {
-      loadCompanies(1, searchQuery);
+      loadCompanies(1, searchQuery, companySort);
     }
   };
 
@@ -202,6 +276,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="time-savings" className="data-[state=active]:bg-white/20 text-white">
               <Timer className="w-4 h-4 mr-2" />
               Time Savings
+            </TabsTrigger>
+            <TabsTrigger value="saved-prompts" className="data-[state=active]:bg-white/20 text-white">
+              <FileText className="w-4 h-4 mr-2" />
+              Saved Prompts
             </TabsTrigger>
           </TabsList>
 
@@ -414,14 +492,30 @@ export default function AdminDashboard() {
 
           {/* Companies/Sessions Tab */}
           <TabsContent value="companies" className="space-y-4">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Input
                 placeholder="Search by job title, industry, or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="bg-white/10 border-white/20 text-white placeholder-blue-300"
+                className="bg-white/10 border-white/20 text-white placeholder-blue-300 flex-1 min-w-[200px]"
               />
+              <Select value={companySort} onValueChange={handleCompanySortChange}>
+                <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+                  <ArrowUpDown className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="-createdAt">Newest First</SelectItem>
+                  <SelectItem value="createdAt">Oldest First</SelectItem>
+                  <SelectItem value="jobTitle">Job Title A-Z</SelectItem>
+                  <SelectItem value="-jobTitle">Job Title Z-A</SelectItem>
+                  <SelectItem value="industry">Industry A-Z</SelectItem>
+                  <SelectItem value="-industry">Industry Z-A</SelectItem>
+                  <SelectItem value="createdBy">User A-Z</SelectItem>
+                  <SelectItem value="-createdBy">User Z-A</SelectItem>
+                </SelectContent>
+              </Select>
               <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
                 <Search className="w-4 h-4" />
               </Button>
@@ -475,12 +569,13 @@ export default function AdminDashboard() {
                   <div className="flex items-center justify-between p-4 border-t border-white/10">
                     <p className="text-blue-300 text-sm">
                       Page {companies.pagination.page} of {companies.pagination.totalPages}
+                      {companies.pagination.total && ` (${companies.pagination.total} total)`}
                     </p>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => loadCompanies(companyPage - 1, searchQuery)}
+                        onClick={() => loadCompanies(companyPage - 1, searchQuery, companySort)}
                         disabled={companyPage <= 1}
                         className="border-white/20 text-white"
                       >
@@ -489,7 +584,7 @@ export default function AdminDashboard() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => loadCompanies(companyPage + 1, searchQuery)}
+                        onClick={() => loadCompanies(companyPage + 1, searchQuery, companySort)}
                         disabled={companyPage >= companies.pagination.totalPages}
                         className="border-white/20 text-white"
                       >
@@ -632,6 +727,190 @@ export default function AdminDashboard() {
                         variant="outline"
                         onClick={() => loadTimeStudies(timeStudyPage + 1)}
                         disabled={timeStudyPage >= timeStudies.pagination.totalPages}
+                        className="border-white/20 text-white"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Saved Prompts Tab */}
+          <TabsContent value="saved-prompts" className="space-y-4">
+            {/* Summary Stats */}
+            {savedPromptsStats && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-purple-200">Total Prompts</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {savedPromptsStats.total}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-green-200">Productivity</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {savedPromptsStats.byType?.productivity || 0}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-500/30">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-blue-200">Performance</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {savedPromptsStats.byType?.performance || 0}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-white/10 border-white/20">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-blue-200">This Week</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {savedPromptsStats.recentCount}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+            )}
+
+            {/* Search, Filter, Sort */}
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                placeholder="Search by deliverable name, column, or overview..."
+                value={savedPromptsSearch}
+                onChange={(e) => setSavedPromptsSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSavedPromptsSearch()}
+                className="bg-white/10 border-white/20 text-white placeholder-blue-300 flex-1 min-w-[200px]"
+              />
+              <Select value={savedPromptsFilter} onValueChange={handleSavedPromptsFilterChange}>
+                <SelectTrigger className="w-[150px] bg-white/10 border-white/20 text-white">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="productivity">Productivity</SelectItem>
+                  <SelectItem value="performance">Performance</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={savedPromptsSort} onValueChange={handleSavedPromptsSortChange}>
+                <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+                  <ArrowUpDown className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="-createdAt">Newest First</SelectItem>
+                  <SelectItem value="createdAt">Oldest First</SelectItem>
+                  <SelectItem value="deliverableName">Name A-Z</SelectItem>
+                  <SelectItem value="-deliverableName">Name Z-A</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleSavedPromptsSearch} className="bg-blue-600 hover:bg-blue-700">
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <Card className="bg-white/10 border-white/20">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-4 text-blue-200 font-medium">Deliverable</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Type</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Column</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">User</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Session</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Created</th>
+                        <th className="text-right p-4 text-blue-200 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savedPrompts.data?.map((prompt) => (
+                        <tr key={prompt.id} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="p-4">
+                            <p className="text-white font-medium">{prompt.deliverable_name}</p>
+                            <p className="text-blue-300 text-sm truncate max-w-[200px]">
+                              {prompt.overview?.substring(0, 60)}...
+                            </p>
+                          </td>
+                          <td className="p-4">
+                            <Badge
+                              variant="outline"
+                              className={
+                                prompt.deliverable_type === 'productivity'
+                                  ? 'border-green-400 text-green-300'
+                                  : 'border-blue-400 text-blue-300'
+                              }
+                            >
+                              {prompt.deliverable_type}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-white text-sm">
+                            {prompt.column_name || '-'}
+                          </td>
+                          <td className="p-4">
+                            <p className="text-blue-300 text-sm">
+                              {prompt.company?.user?.email || prompt.company?.created_by || '-'}
+                            </p>
+                          </td>
+                          <td className="p-4">
+                            <p className="text-white text-sm">{prompt.company?.job_title || '-'}</p>
+                            <p className="text-blue-300 text-xs">{prompt.company?.industry || '-'}</p>
+                          </td>
+                          <td className="p-4 text-blue-300 text-sm">
+                            {formatDate(prompt.created_at)}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setSelectedPrompt(prompt)}
+                              className="text-blue-300 hover:text-white hover:bg-white/10"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!savedPrompts.data || savedPrompts.data.length === 0) && (
+                        <tr>
+                          <td colSpan="7" className="p-8 text-center text-blue-300">
+                            No saved prompts found. Users save prompts when generating deliverable content.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {savedPrompts.pagination?.totalPages > 1 && (
+                  <div className="flex items-center justify-between p-4 border-t border-white/10">
+                    <p className="text-blue-300 text-sm">
+                      Page {savedPrompts.pagination.page} of {savedPrompts.pagination.totalPages}
+                      {savedPrompts.pagination.total && ` (${savedPrompts.pagination.total} total)`}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => loadSavedPrompts(savedPromptsPage - 1)}
+                        disabled={savedPromptsPage <= 1}
+                        className="border-white/20 text-white"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => loadSavedPrompts(savedPromptsPage + 1)}
+                        disabled={savedPromptsPage >= savedPrompts.pagination.totalPages}
                         className="border-white/20 text-white"
                       >
                         <ChevronRight className="w-4 h-4" />
@@ -802,6 +1081,100 @@ export default function AdminDashboard() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Prompt Details Dialog */}
+      <Dialog open={!!selectedPrompt} onOpenChange={() => setSelectedPrompt(null)}>
+        <DialogContent className="sm:max-w-3xl bg-slate-900 border-white/20 text-white max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-400" />
+              Saved Prompt Details
+            </DialogTitle>
+            <DialogDescription>View deliverable prompt information</DialogDescription>
+          </DialogHeader>
+          {selectedPrompt && (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 pr-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-blue-300 text-sm">Deliverable Name</p>
+                    <p className="text-white font-medium">{selectedPrompt.deliverable_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-300 text-sm">Type</p>
+                    <Badge
+                      variant="outline"
+                      className={
+                        selectedPrompt.deliverable_type === 'productivity'
+                          ? 'border-green-400 text-green-300'
+                          : 'border-blue-400 text-blue-300'
+                      }
+                    >
+                      {selectedPrompt.deliverable_type}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-blue-300 text-sm">Column</p>
+                    <p className="text-white">{selectedPrompt.column_name || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-300 text-sm">Created</p>
+                    <p className="text-white">{formatDate(selectedPrompt.created_at)}</p>
+                  </div>
+                  {selectedPrompt.company && (
+                    <>
+                      <div>
+                        <p className="text-blue-300 text-sm">Session</p>
+                        <p className="text-white">{selectedPrompt.company.job_title}</p>
+                        <p className="text-blue-300 text-xs">{selectedPrompt.company.industry}</p>
+                      </div>
+                      <div>
+                        <p className="text-blue-300 text-sm">User</p>
+                        <p className="text-white">
+                          {selectedPrompt.company.user?.email || selectedPrompt.company.created_by}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-blue-300 text-sm mb-2">Overview</p>
+                  <div className="bg-white/5 rounded-lg p-3 text-sm text-white whitespace-pre-wrap">
+                    {selectedPrompt.overview}
+                  </div>
+                </div>
+
+                {selectedPrompt.prompts && selectedPrompt.prompts.length > 0 && (
+                  <div>
+                    <p className="text-blue-300 text-sm mb-2">
+                      Prompts ({selectedPrompt.prompts.length} steps)
+                    </p>
+                    <div className="space-y-3">
+                      {selectedPrompt.prompts.map((p, i) => (
+                        <div key={i} className="bg-white/5 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="border-purple-400 text-purple-300">
+                              Step {p.step || i + 1}
+                            </Badge>
+                            <p className="text-white font-medium">{p.title}</p>
+                          </div>
+                          {p.description && (
+                            <p className="text-blue-300 text-sm mb-2">{p.description}</p>
+                          )}
+                          <div className="bg-black/20 rounded p-2 text-xs text-gray-300 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                            {p.prompt}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

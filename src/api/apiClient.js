@@ -287,6 +287,21 @@ class ApiClient {
       });
       return this.request(`/admin/time-studies/stats?${searchParams.toString()}`);
     },
+
+    // Saved Prompts methods
+    getSavedPrompts: async (params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/admin/saved-prompts?${searchParams.toString()}`);
+    },
+
+    getSavedPromptsStats: async () => {
+      return this.request('/admin/saved-prompts/stats');
+    },
   };
 
   // Integrations - kept for compatibility but will need separate implementation
