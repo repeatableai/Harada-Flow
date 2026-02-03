@@ -1,7 +1,7 @@
-FROM node:18-alpine
+FROM node:18-slim
 
-# Install build dependencies for bcrypt
-RUN apk add --no-cache python3 make g++
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
