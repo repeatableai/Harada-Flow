@@ -26,6 +26,8 @@ export async function invokeLLM({
     throw new Error('Anthropic API key not configured. Set ANTHROPIC_API_KEY in your .env file.');
   }
 
+  console.log(`LLM request - Model: ${config.anthropic.model}, API key present: ${!!config.anthropic.apiKey}`);
+
   // Start timing for time study tracking
   const startTime = Date.now();
 
@@ -105,7 +107,9 @@ export async function invokeLLM({
       } catch (parseError) {
         console.error('Failed to parse LLM JSON response:', content);
         console.error('Parse error:', parseError.message);
-        throw new Error('Invalid JSON response from LLM');
+        // Include first 500 chars of response in error for debugging
+        const preview = content.substring(0, 500);
+        throw new Error(`Invalid JSON response from LLM. Preview: ${preview}`);
       }
     }
 
@@ -124,6 +128,7 @@ export async function invokeLLM({
     return content;
   } catch (error) {
     console.error('Anthropic API error:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
 
     if (error.status === 401) {
       throw new Error('Invalid Anthropic API key. Please check your configuration.');
@@ -137,7 +142,11 @@ export async function invokeLLM({
       throw new Error('Invalid request to Anthropic API: ' + error.message);
     }
 
-    throw error;
+    if (error.status === 404) {
+      throw new Error(`Model not found: ${config.anthropic.model}. Check ANTHROPIC_MODEL setting.`);
+    }
+
+    throw new Error(`Anthropic API error: ${error.message || error}`);
   }
 }
 
