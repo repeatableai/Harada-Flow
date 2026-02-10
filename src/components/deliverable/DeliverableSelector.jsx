@@ -2,13 +2,25 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Target, Search } from "lucide-react";
+import { FileText, Target, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
+import NewDeliverableDialog from "./NewDeliverableDialog";
 
 export default function DeliverableSelector({ productivityMatrix, performanceMatrix, onSelect }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMatrix, setSelectedMatrix] = useState("both");
+  const [showNewDialog, setShowNewDialog] = useState(false);
+
+  const handleNewDeliverable = (name, type) => {
+    onSelect({
+      name,
+      type,
+      column: 'Custom',
+      isCustom: true,
+    });
+    setShowNewDialog(false);
+  };
 
   const getAllDeliverables = () => {
     const deliverables = [];
@@ -68,6 +80,13 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
                 className="bg-white/10 border-white/20 text-white placeholder-blue-300"
               />
             </div>
+            <Button
+              onClick={() => setShowNewDialog(true)}
+              className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Deliverable
+            </Button>
             <div className="flex gap-2">
               <Button
                 variant={selectedMatrix === "both" ? "default" : "outline"}
@@ -147,6 +166,12 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
           </CardContent>
         </Card>
       )}
+
+      <NewDeliverableDialog
+        open={showNewDialog}
+        onOpenChange={setShowNewDialog}
+        onSubmit={handleNewDeliverable}
+      />
     </div>
   );
 }
