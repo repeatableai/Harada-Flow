@@ -72,7 +72,7 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-4">
-            <div className="flex-1">
+            <div className="flex-[0.6]">
               <Input
                 placeholder="Search deliverables or problems..."
                 value={searchTerm}
@@ -85,7 +85,7 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
               className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white whitespace-nowrap"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Deliverable
+              Custom Deliverable
             </Button>
             <div className="flex gap-2">
               <Button
