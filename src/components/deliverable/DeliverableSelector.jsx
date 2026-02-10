@@ -71,8 +71,8 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-[0.6]">
+          <div className="flex gap-4 items-center">
+            <div className="flex-1">
               <Input
                 placeholder="Search deliverables or problems..."
                 value={searchTerm}
@@ -80,14 +80,15 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
                 className="bg-white/10 border-white/20 text-white placeholder-blue-300"
               />
             </div>
-            <Button
-              onClick={() => setShowNewDialog(true)}
-              className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Custom Deliverable
-            </Button>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <Button
+                onClick={() => setShowNewDialog(true)}
+                className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Custom Deliverable
+              </Button>
+              <div className="w-px h-6 bg-white/20 mx-1" />
               <Button
                 variant={selectedMatrix === "both" ? "default" : "outline"}
                 onClick={() => setSelectedMatrix("both")}
