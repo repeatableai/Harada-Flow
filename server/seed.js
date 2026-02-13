@@ -13,13 +13,24 @@ const adminUsers = [
     name: 'Kevin',
     role: 'SUPER_ADMIN',
   },
-  // Add more admin users as needed:
-  // {
-  //   email: 'admin@example.com',
-  //   password: 'SecurePassword456!',
-  //   name: 'Admin',
-  //   role: 'ADMIN',
-  // },
+  {
+    email: 'company-admin@demo.com',
+    password: 'demo123',
+    name: 'Company Admin Demo',
+    role: 'COMPANY_ADMIN',
+  },
+  {
+    email: 'dept-admin@demo.com',
+    password: 'demo123',
+    name: 'Department Admin Demo',
+    role: 'DEPARTMENT_ADMIN',
+  },
+  {
+    email: 'user@demo.com',
+    password: 'demo123',
+    name: 'User Demo',
+    role: 'USER',
+  },
 ];
 
 async function main() {
