@@ -8,8 +8,8 @@ const SALT_ROUNDS = 12;
 // Admin users to seed
 const adminUsers = [
   {
-    email: 'Kevin@repeatable.ai',
-    password: 'Merwan.1894',
+    email: 'kevin@repeatable.ai',
+    password: '123456',
     name: 'Kevin',
     role: 'SUPER_ADMIN',
   },
