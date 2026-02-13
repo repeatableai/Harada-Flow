@@ -90,23 +90,29 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
               </Button>
               <div className="w-px h-6 bg-white/20 mx-1" />
               <Button
-                variant={selectedMatrix === "both" ? "default" : "outline"}
+                variant="ghost"
                 onClick={() => setSelectedMatrix("both")}
-                className={selectedMatrix === "both" ? "bg-blue-600 hover:bg-blue-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20"}
+                className={selectedMatrix === "both"
+                  ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                  : "bg-white/10 border border-white/20 text-blue-300 hover:bg-white/20 hover:text-white"}
               >
                 Both
               </Button>
               <Button
-                variant={selectedMatrix === "productivity" ? "default" : "outline"}
+                variant="ghost"
                 onClick={() => setSelectedMatrix("productivity")}
-                className={selectedMatrix === "productivity" ? "bg-blue-600 hover:bg-blue-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20"}
+                className={selectedMatrix === "productivity"
+                  ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                  : "bg-white/10 border border-white/20 text-blue-300 hover:bg-white/20 hover:text-white"}
               >
                 Productivity
               </Button>
               <Button
-                variant={selectedMatrix === "performance" ? "default" : "outline"}
+                variant="ghost"
                 onClick={() => setSelectedMatrix("performance")}
-                className={selectedMatrix === "performance" ? "bg-purple-600 hover:bg-purple-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20"}
+                className={selectedMatrix === "performance"
+                  ? "bg-purple-600 text-white hover:bg-purple-700 hover:text-white"
+                  : "bg-white/10 border border-white/20 text-blue-300 hover:bg-white/20 hover:text-white"}
               >
                 Performance
               </Button>

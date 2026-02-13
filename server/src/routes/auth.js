@@ -27,6 +27,37 @@ const updateMeSchema = z.object({
   job_title: z.string().optional(), // Accept both formats
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const setPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const validateTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
+const accessRequestSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  company: z.string().min(1, 'Company is required'),
+  email: z.string().email('Invalid email address'),
+  jobTitle: z.string().min(1, 'Job title is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
 // Cookie options for refresh token
 const cookieOptions = {
   httpOnly: true,
@@ -157,6 +188,117 @@ router.patch('/me', authenticate, async (req, res, next) => {
     }
     const user = await authService.updateCurrentUser(req.user.id, data);
     res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/forgot-password - Request password reset email
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body);
+    const result = await authService.requestPasswordReset(email);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/auth/validate-token - Check if reset/invite token is valid
+router.get('/validate-token', async (req, res, next) => {
+  try {
+    const { token } = validateTokenSchema.parse(req.query);
+    const result = await authService.validateResetToken(token);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/reset-password - Set new password with reset token
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { token, password } = resetPasswordSchema.parse(req.body);
+    const result = await authService.resetPassword(token, password);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/set-password - Set initial password with invite token
+router.post('/set-password', async (req, res, next) => {
+  try {
+    const { token, password } = setPasswordSchema.parse(req.body);
+    const result = await authService.setInitialPassword(token, password);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/request-access - Submit a temporary access request
+router.post('/request-access', async (req, res, next) => {
+  try {
+    const data = accessRequestSchema.parse(req.body);
+    const result = await authService.submitAccessRequest(data);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/auth/trial-status - Check trial user deliverable limit status
+router.get('/trial-status', authenticate, async (req, res, next) => {
+  try {
+    const result = await authService.checkTrialUserDeliverableLimit(req.user.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/change-password - Change user's password
+router.post('/change-password', authenticate, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    const result = await authService.changePassword(req.user.id, currentPassword, newPassword);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/auth/sessions - List user's active sessions
+router.get('/sessions', authenticate, async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    const sessions = await authService.listUserSessions(req.user.id, refreshToken);
+    res.json({ data: sessions });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/auth/sessions - Logout all other sessions
+router.delete('/sessions', authenticate, async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'No current session found' });
+    }
+    const result = await authService.logoutOtherSessions(req.user.id, refreshToken);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/auth/sessions/:id - Logout specific session
+router.delete('/sessions/:id', authenticate, async (req, res, next) => {
+  try {
+    const result = await authService.logoutSession(req.user.id, req.params.id);
+    res.json(result);
   } catch (error) {
     next(error);
   }

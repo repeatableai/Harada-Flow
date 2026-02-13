@@ -53,3 +53,6 @@ local_data.sql
 
 # Server environment (never commit)
 server/.env
+
+# Uploaded files (knowledge files)
+server/uploads/

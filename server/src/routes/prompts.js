@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.js';
 import * as promptService from '../services/prompt.service.js';
+import { checkTrialUserDeliverableLimit, incrementTrialUserDeliverables } from '../services/auth.service.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -42,13 +44,35 @@ router.get('/', async (req, res, next) => {
 // POST /api/companies/:companyId/prompts - Create prompt for a company
 router.post('/companies/:companyId/prompts', async (req, res, next) => {
   try {
+    // Check trial user deliverable limit before saving
+    const trialStatus = await checkTrialUserDeliverableLimit(req.user.id);
+    if (trialStatus.isTrialUser && !trialStatus.canSave) {
+      throw new AppError(
+        `Trial account limit reached. You have saved ${trialStatus.deliverableLimit} deliverables. Please contact an administrator to upgrade your account for full access.`,
+        403
+      );
+    }
+
     const data = createPromptSchema.parse(req.body);
     const prompt = await promptService.create(
       req.user.id,
       req.params.companyId,
       data
     );
-    res.status(201).json(prompt);
+
+    // Increment trial user deliverable count after successful save
+    let trialInfo = null;
+    if (trialStatus.isTrialUser) {
+      const updateResult = await incrementTrialUserDeliverables(req.user.id);
+      trialInfo = {
+        isTrialUser: true,
+        deliverablesUsed: updateResult.deliverablesUsed,
+        remaining: updateResult.remaining,
+        limitReached: updateResult.limitReached,
+      };
+    }
+
+    res.status(201).json({ ...prompt, trialStatus: trialInfo });
   } catch (error) {
     next(error);
   }

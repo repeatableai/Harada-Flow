@@ -1,9 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { apiClient } from '@/api/apiClient';
-import AuthTypeSelector from './AuthTypeSelector';
-import SuperAdminLogin from './SuperAdminLogin';
-import UserLogin from './UserLogin';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import UnifiedLogin from './UnifiedLogin';
 
 // Auth context for app-wide access to user state
 const AuthContext = createContext(null);
@@ -16,9 +13,15 @@ export function useAuth() {
   return context;
 }
 
+// Public routes that don't require authentication
+const PUBLIC_AUTH_ROUTES = ['/forgot-password', '/reset-password', '/set-password', '/request-access'];
+
+function isPublicAuthRoute() {
+  return PUBLIC_AUTH_ROUTES.includes(window.location.pathname);
+}
+
 export default function AuthProvider({ children }) {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [authStep, setAuthStep] = useState('selector'); // 'selector', 'superadmin', 'user'
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking, true/false = known
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -51,7 +54,6 @@ export default function AuthProvider({ children }) {
     // Listen for auth required events
     const handleAuthRequired = (event) => {
       setShowAuthDialog(true);
-      setAuthStep('selector');
     };
 
     window.addEventListener('auth-required', handleAuthRequired);
@@ -66,7 +68,6 @@ export default function AuthProvider({ children }) {
     setCurrentUser(user);
     setIsAuthenticated(true);
     setShowAuthDialog(false);
-    setAuthStep('selector');
   };
 
   const handleLogout = async () => {
@@ -81,21 +82,62 @@ export default function AuthProvider({ children }) {
     window.location.href = window.location.origin;
   };
 
-  const handleSelectType = (type) => {
-    setAuthStep(type);
+  // Role hierarchy levels for comparison
+  const ROLE_LEVELS = {
+    USER: 1,
+    DEPARTMENT_ADMIN: 2,
+    COMPANY_ADMIN: 3,
+    ADMIN: 3, // Maps to COMPANY_ADMIN level
+    SUPER_ADMIN: 4,
   };
 
-  const handleClose = () => {
-    // Don't allow closing if not authenticated
-    if (!isAuthenticated) {
-      return;
-    }
-    setShowAuthDialog(false);
-    setAuthStep('selector');
+  // Check if current user can manage a target role
+  const canManage = (targetRole) => {
+    if (!currentUser) return false;
+    const userLevel = ROLE_LEVELS[currentUser.role] || 0;
+    const targetLevel = ROLE_LEVELS[targetRole] || 0;
+    return userLevel > targetLevel;
   };
 
-  const handleBackToSelector = () => {
-    setAuthStep('selector');
+  // Check if current user has at least the specified role level
+  const hasRole = (requiredRole) => {
+    if (!currentUser) return false;
+    const userLevel = ROLE_LEVELS[currentUser.role] || 0;
+    const requiredLevel = ROLE_LEVELS[requiredRole] || 0;
+    return userLevel >= requiredLevel;
+  };
+
+  // Check if user is in a specific organization
+  const isInOrg = (orgId) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true; // Super admins have access to all orgs
+    return currentUser.organizationId === orgId;
+  };
+
+  // Check if user is in a specific department
+  const isInDept = (deptId) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    if (['COMPANY_ADMIN', 'ADMIN'].includes(currentUser.role)) return true; // Company admins can access all depts in their org
+    return currentUser.departmentId === deptId;
+  };
+
+  // Check if user is any kind of admin
+  const isAdmin = () => {
+    if (!currentUser) return false;
+    return ['DEPARTMENT_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'SUPER_ADMIN'].includes(currentUser.role);
+  };
+
+  // Check if user is company admin or higher
+  const isCompanyAdmin = () => {
+    if (!currentUser) return false;
+    return ['COMPANY_ADMIN', 'ADMIN', 'SUPER_ADMIN'].includes(currentUser.role);
+  };
+
+  // Check if user is super admin
+  const isSuperAdmin = () => {
+    if (!currentUser) return false;
+    return currentUser.role === 'SUPER_ADMIN';
   };
 
   // Context value
@@ -113,39 +155,39 @@ export default function AuthProvider({ children }) {
         return null;
       }
     },
+    // Role/permission helpers
+    canManage,
+    hasRole,
+    isInOrg,
+    isInDept,
+    isAdmin,
+    isCompanyAdmin,
+    isSuperAdmin,
+    // Organization/Department info
+    organization: currentUser?.organization || null,
+    department: currentUser?.department || null,
   };
 
-  // Show auth dialog if not authenticated
+  // Allow public auth routes (forgot password, reset password, set password) without authentication
+  if (isPublicAuthRoute()) {
+    return (
+      <AuthContext.Provider value={contextValue}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+
+  // Show login if not authenticated
   if (isAuthenticated === false) {
     return (
       <AuthContext.Provider value={contextValue}>
-        <Dialog open={showAuthDialog} onOpenChange={handleClose}>
-          <DialogContent className="sm:max-w-lg bg-transparent border-none shadow-none p-0">
-            <DialogHeader className="sr-only">
-              <DialogTitle>Select Company</DialogTitle>
-              <DialogDescription>Choose which company to work with</DialogDescription>
-            </DialogHeader>
-            {authStep === 'selector' && (
-              <div className="bg-white/10 backdrop-blur-lg border-white/20 rounded-lg p-6">
-                <AuthTypeSelector onSelectType={handleSelectType} />
-              </div>
-            )}
-            {authStep === 'superadmin' && (
-              <SuperAdminLogin
-                open={true}
-                onClose={handleBackToSelector}
-                onLogin={handleLogin}
-              />
-            )}
-            {authStep === 'user' && (
-              <UserLogin
-                open={true}
-                onClose={handleBackToSelector}
-                onLogin={handleLogin}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
+          <div className="w-full max-w-md">
+            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8">
+              <UnifiedLogin onLogin={handleLogin} />
+            </div>
+          </div>
+        </div>
       </AuthContext.Provider>
     );
   }

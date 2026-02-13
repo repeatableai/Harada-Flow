@@ -183,20 +183,20 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => onViewSession(session)}
-                        className="flex-1 bg-white/5 border-white/20 text-white hover:bg-white/15"
+                        className="flex-1 bg-white/5 border border-white/20 text-white hover:bg-white/15"
                         disabled={session.id === currentCompanyId}
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         {session.id === currentCompanyId ? 'Viewing' : 'View'}
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => setDeleteConfirm(session)}
-                        className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                        className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

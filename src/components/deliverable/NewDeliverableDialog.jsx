@@ -82,9 +82,9 @@ export default function NewDeliverableDialog({ open, onOpenChange, onSubmit }) {
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={handleCancel}
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
           >
             Cancel
           </Button>

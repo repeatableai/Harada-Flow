@@ -215,19 +215,19 @@ export default function SavedPromptsList({ onPromptDeleted }) {
                           </Button>
                         </CollapsibleTrigger>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => copyAllPrompts(savedPrompt)}
-                          className="bg-white/5 border-white/20 text-white hover:bg-white/15"
+                          className="bg-white/5 border border-white/20 text-white hover:bg-white/15"
                         >
                           <Copy className="w-4 h-4 mr-1" />
                           Copy All
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
                           onClick={() => setDeleteConfirm(savedPrompt)}
-                          className="bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
+                          className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

@@ -158,6 +158,65 @@ class ApiClient {
       this.accessToken = result.accessToken;
       return result;
     },
+
+    forgotPassword: async (email) => {
+      return this.request('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+    },
+
+    validateToken: async (token) => {
+      return this.request(`/auth/validate-token?token=${encodeURIComponent(token)}`);
+    },
+
+    resetPassword: async (token, password) => {
+      return this.request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      });
+    },
+
+    setPassword: async (token, password) => {
+      return this.request('/auth/set-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      });
+    },
+
+    requestAccess: async (data) => {
+      return this.request('/auth/request-access', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    getTrialStatus: async () => {
+      return this.request('/auth/trial-status');
+    },
+
+    changePassword: async (currentPassword, newPassword) => {
+      return this.request('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+    },
+
+    getSessions: async () => {
+      return this.request('/auth/sessions');
+    },
+
+    logoutAllOtherSessions: async () => {
+      return this.request('/auth/sessions', {
+        method: 'DELETE',
+      });
+    },
+
+    logoutSession: async (sessionId) => {
+      return this.request(`/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+      });
+    },
   };
 
   // Entity methods - compatible with Base44 interface
@@ -301,6 +360,266 @@ class ApiClient {
 
     getSavedPromptsStats: async () => {
       return this.request('/admin/saved-prompts/stats');
+    },
+
+    // User management methods
+    updateUserRole: async (userId, role) => {
+      return this.request(`/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      });
+    },
+
+    updateUserOrganization: async (userId, organizationId) => {
+      return this.request(`/admin/users/${userId}/organization`, {
+        method: 'PATCH',
+        body: JSON.stringify({ organizationId }),
+      });
+    },
+
+    updateUserDepartment: async (userId, departmentId) => {
+      return this.request(`/admin/users/${userId}/department`, {
+        method: 'PATCH',
+        body: JSON.stringify({ departmentId }),
+      });
+    },
+
+    inviteUser: async (data) => {
+      return this.request('/admin/users/invite', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    updateUser: async (userId, data) => {
+      return this.request(`/admin/users/${userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    deleteUser: async (userId) => {
+      return this.request(`/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+    },
+
+    toggleUserStatus: async (userId, isActive) => {
+      return this.request(`/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      });
+    },
+
+    // Access Request management (Super Admin only)
+    getAccessRequests: async (status = null) => {
+      const params = status ? `?status=${status}` : '';
+      return this.request(`/admin/access-requests${params}`);
+    },
+
+    approveAccessRequest: async (requestId) => {
+      return this.request(`/admin/access-requests/${requestId}/approve`, {
+        method: 'POST',
+      });
+    },
+
+    rejectAccessRequest: async (requestId, reason = null) => {
+      return this.request(`/admin/access-requests/${requestId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    },
+  };
+
+  // Organization methods (Super Admin)
+  organizations = {
+    list: async (params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/organizations?${searchParams.toString()}`);
+    },
+
+    get: async (id) => {
+      return this.request(`/organizations/${id}`);
+    },
+
+    create: async (data) => {
+      return this.request('/organizations', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: async (id, data) => {
+      return this.request(`/organizations/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    delete: async (id) => {
+      return this.request(`/organizations/${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    getUsers: async (id, params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/organizations/${id}/users?${searchParams.toString()}`);
+    },
+
+    toggleStatus: async (id, isActive) => {
+      return this.request(`/organizations/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive }),
+      });
+    },
+  };
+
+  // Department methods (Company Admin+)
+  departments = {
+    list: async (orgId, params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/organizations/${orgId}/departments?${searchParams.toString()}`);
+    },
+
+    get: async (id) => {
+      return this.request(`/departments/${id}`);
+    },
+
+    create: async (orgId, data) => {
+      return this.request(`/organizations/${orgId}/departments`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+
+    update: async (id, data) => {
+      return this.request(`/departments/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+
+    delete: async (id) => {
+      return this.request(`/departments/${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    getUsers: async (id, params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/departments/${id}/users?${searchParams.toString()}`);
+    },
+  };
+
+  // Knowledge Files API
+  knowledgeFiles = {
+    upload: async (file, scope, departmentIds = [], description = '', organizationId = null) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('scope', scope);
+      if (departmentIds.length > 0) {
+        formData.append('departmentIds', JSON.stringify(departmentIds));
+      }
+      if (description) {
+        formData.append('description', description);
+      }
+      if (organizationId) {
+        formData.append('organizationId', organizationId);
+      }
+
+      const url = `${API_BASE}/knowledge-files/upload`;
+      const headers = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+        const err = new Error(error.error || 'Upload failed');
+        err.status = response.status;
+        throw err;
+      }
+
+      return response.json();
+    },
+
+    list: async (params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/knowledge-files?${searchParams.toString()}`);
+    },
+
+    get: async (id) => {
+      return this.request(`/knowledge-files/${id}`);
+    },
+
+    download: async (id) => {
+      const url = `${API_BASE}/knowledge-files/${id}/download`;
+      const headers = {};
+      if (this.accessToken) {
+        headers['Authorization'] = `Bearer ${this.accessToken}`;
+      }
+
+      const response = await fetch(url, {
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Download failed' }));
+        const err = new Error(error.error || 'Download failed');
+        err.status = response.status;
+        throw err;
+      }
+
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'download';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?(.+?)"?$/);
+        if (match) {
+          filename = decodeURIComponent(match[1]);
+        }
+      }
+
+      const blob = await response.blob();
+      return { blob, filename };
+    },
+
+    delete: async (id) => {
+      return this.request(`/knowledge-files/${id}`, { method: 'DELETE' });
     },
   };
 

@@ -142,9 +142,9 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
             </CardTitle>
             <div className="flex gap-2">
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={onCancel}
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
               >
                 <X className="w-4 h-4 mr-2" />
                 Cancel

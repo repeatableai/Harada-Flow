@@ -9,30 +9,45 @@ datasource db {
 
 enum UserRole {
   USER
-  ADMIN
+  DEPARTMENT_ADMIN
+  COMPANY_ADMIN
+  ADMIN           // Kept for backwards compatibility (maps to COMPANY_ADMIN)
   SUPER_ADMIN
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String?   // Null for email-verified users (regular users)
-  name          String?
-  jobTitle      String?   @map("job_title")
-  role          UserRole  @default(USER)
-  isPermanent   Boolean   @default(false) @map("is_permanent")
-  sessionExpiry DateTime? @map("session_expiry")
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String?   // Null for email-verified users (regular users)
+  name           String?
+  jobTitle       String?   @map("job_title")
+  role           UserRole  @default(USER)
+  isPermanent    Boolean   @default(false) @map("is_permanent")
+  isActive       Boolean   @default(true) @map("is_active")
+  isTrialUser       Boolean   @default(false) @map("is_trial_user")    // Users from request access
+  deliverablesUsed  Int       @default(0) @map("deliverables_used")   // Track saved deliverables for trial users
+  sessionExpiry  DateTime? @map("session_expiry")
 
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  lastLoginAt   DateTime? @map("last_login_at")
+  // Organization/Department associations
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  departmentId   String?       @map("department_id")
+  department     Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
-  companies     Company[]
-  sessions      Session[]
-  timeStudies   TimeStudy[]
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  lastLoginAt    DateTime? @map("last_login_at")
+
+  companies            Company[]
+  sessions             Session[]
+  timeStudies          TimeStudy[]
+  knowledgeFiles       KnowledgeFile[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@index([email])
   @@index([role])
+  @@index([organizationId])
+  @@index([departmentId])
   @@map("users")
 }
 
@@ -64,6 +79,10 @@ model Company {
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy          String   @map("created_by") // User email for backwards compatibility
 
+  // Organization association
+  organizationId     String?       @map("organization_id")
+  organization       Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -72,6 +91,7 @@ model Company {
 
   @@index([userId])
   @@index([createdBy])
+  @@index([organizationId])
   @@index([createdAt(sort: Desc)])
   @@map("companies")
 }
@@ -142,4 +162,104 @@ model TimeStudy {
   @@index([operationType])
   @@index([createdAt(sort: Desc)])
   @@map("time_studies")
+}
+
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique  // URL-friendly identifier
+  industry    String?      // Company industry (e.g., "Technology", "Healthcare")
+  companySize String?      @map("company_size")  // Company size (e.g., "startup", "medium", "enterprise")
+  website     String?      // Company website URL
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  departments    Department[]
+  users          User[]
+  companies      Company[]
+  knowledgeFiles KnowledgeFile[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model Department {
+  id             String       @id @default(uuid())
+  name           String
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  users          User[]
+
+  @@unique([organizationId, name])  // Unique dept name per org
+  @@index([organizationId])
+  @@map("departments")
+}
+
+model KnowledgeFile {
+  id             String       @id @default(uuid())
+  filename       String       // Stored filename (UUID-based)
+  originalName   String       @map("original_name")
+  mimeType       String       @map("mime_type")
+  size           Int          // File size in bytes
+
+  // Uploader info
+  uploaderId     String       @map("uploader_id")
+  uploader       User         @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  // Scope: 'self', 'departments', 'company', 'system'
+  scope          String       @default("self")
+
+  // For 'departments' scope - which departments can access
+  departmentIds  String[]     @default([]) @map("department_ids")
+
+  // Organization this file belongs to
+  organizationId String?      @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Metadata
+  description    String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@index([uploaderId])
+  @@index([organizationId])
+  @@index([scope])
+  @@map("knowledge_files")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    // 'reset' or 'invite'
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AccessRequest {
+  id           String    @id @default(uuid())
+  name         String
+  company      String
+  email        String
+  jobTitle     String    @map("job_title")
+  passwordHash String    @map("password_hash")
+  status       String    @default("pending")  // 'pending', 'approved', 'rejected'
+  reviewedAt   DateTime? @map("reviewed_at")
+  reviewedBy   String?   @map("reviewed_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("access_requests")
 }

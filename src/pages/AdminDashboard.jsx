@@ -28,6 +28,11 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
+  Building2,
+  FolderTree,
+  UserCog,
+  FolderOpen,
+  UserPlus,
 } from 'lucide-react';
 import {
   Select,
@@ -37,19 +42,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
+import CompanyManager from '@/components/admin/CompanyManager';
+import DepartmentManager from '@/components/admin/DepartmentManager';
+import UserManager from '@/components/admin/UserManager';
+import KnowledgeFileManager from '@/components/admin/KnowledgeFileManager';
+import AccessRequestManager from '@/components/admin/AccessRequestManager';
+import OrganizationSettings from '@/components/admin/OrganizationSettings';
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, isAdmin, isCompanyAdmin, isSuperAdmin, organization, department } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Determine dashboard scope based on role
+  const isDeptAdmin = isAdmin() && !isCompanyAdmin();
+  const scopeLabel = isSuperAdmin() ? 'System' : isCompanyAdmin() ? (organization?.name || 'Company') : (department?.name || 'Department');
   const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState({ data: [], pagination: {} });
   const [companies, setCompanies] = useState({ data: [], pagination: {} });
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(null);
-  const [userPage, setUserPage] = useState(1);
   const [companyPage, setCompanyPage] = useState(1);
   const [timeStudies, setTimeStudies] = useState({ data: [], pagination: {} });
   const [timeStudyStats, setTimeStudyStats] = useState(null);
@@ -65,25 +77,39 @@ export default function AdminDashboard() {
   const [savedPromptsSort, setSavedPromptsSort] = useState('-createdAt');
   const [savedPromptsFilter, setSavedPromptsFilter] = useState('all');
   const [savedPromptsSearch, setSavedPromptsSearch] = useState('');
+  const [savedPromptsUserFilter, setSavedPromptsUserFilter] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
 
-  // Check admin access
+  // Check admin access - now supports DEPARTMENT_ADMIN and above
   useEffect(() => {
-    if (user && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.userType !== 'superadmin') {
+    if (user && !isAdmin()) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, navigate, isAdmin]);
 
   // Load initial data
   useEffect(() => {
     loadStats();
-    loadUsers(1);
     loadCompanies(1, '', companySort);
-    loadTimeStudyStats();
-    loadTimeStudies(1);
+    // Time Savings feature hidden for now - keeping code for future use
+    // loadTimeStudyStats();
+    // loadTimeStudies(1);
     loadSavedPromptsStats();
     loadSavedPrompts(1);
+    if (isSuperAdmin()) {
+      loadAllUsers();
+    }
   }, []);
+
+  const loadAllUsers = async () => {
+    try {
+      const data = await apiClient.admin.getUsers({ limit: 200 });
+      setAllUsers(data.data || []);
+    } catch (error) {
+      console.error('Failed to load users for filter:', error);
+    }
+  };
 
   const loadStats = async () => {
     try {
@@ -91,23 +117,6 @@ export default function AdminDashboard() {
       setStats(data);
     } catch (error) {
       console.error('Failed to load stats:', error);
-    }
-  };
-
-  const loadUsers = async (page, search = '') => {
-    setIsLoading(true);
-    try {
-      const data = await apiClient.admin.getUsers({
-        page,
-        limit: 10,
-        search: search || undefined,
-      });
-      setUsers(data);
-      setUserPage(page);
-    } catch (error) {
-      console.error('Failed to load users:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -163,7 +172,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const loadSavedPrompts = async (page, search = savedPromptsSearch, sort = savedPromptsSort, filter = savedPromptsFilter) => {
+  const loadSavedPrompts = async (page, search = savedPromptsSearch, sort = savedPromptsSort, filter = savedPromptsFilter, userFilter = savedPromptsUserFilter) => {
     setIsLoading(true);
     try {
       const data = await apiClient.admin.getSavedPrompts({
@@ -172,6 +181,7 @@ export default function AdminDashboard() {
         search: search || undefined,
         sort,
         deliverableType: filter !== 'all' ? filter : undefined,
+        userId: userFilter || undefined,
       });
       setSavedPrompts(data);
       setSavedPromptsPage(page);
@@ -194,27 +204,21 @@ export default function AdminDashboard() {
 
   const handleSavedPromptsFilterChange = (newFilter) => {
     setSavedPromptsFilter(newFilter);
-    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, newFilter);
+    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, newFilter, savedPromptsUserFilter);
+  };
+
+  const handleSavedPromptsUserFilterChange = (newUserFilter) => {
+    setSavedPromptsUserFilter(newUserFilter);
+    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, savedPromptsFilter, newUserFilter);
   };
 
   const handleSavedPromptsSearch = () => {
-    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, savedPromptsFilter);
+    loadSavedPrompts(1, savedPromptsSearch, savedPromptsSort, savedPromptsFilter, savedPromptsUserFilter);
   };
 
   const handleSearch = () => {
-    if (activeTab === 'users') {
-      loadUsers(1, searchQuery);
-    } else if (activeTab === 'companies') {
+    if (activeTab === 'companies') {
       loadCompanies(1, searchQuery, companySort);
-    }
-  };
-
-  const viewUserDetails = async (userId) => {
-    try {
-      const data = await apiClient.admin.getUser(userId);
-      setSelectedUser(data);
-    } catch (error) {
-      console.error('Failed to load user details:', error);
     }
   };
 
@@ -253,34 +257,86 @@ export default function AdminDashboard() {
               Back to App
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-              <p className="text-blue-200">View and manage user activity</p>
+              <h1 className="text-3xl font-bold text-white">
+                {isSuperAdmin() ? 'Super Admin Dashboard' :
+                 isCompanyAdmin() ? 'Company Admin Dashboard' :
+                 'Department Admin Dashboard'}
+              </h1>
+              <p className="text-blue-200">
+                {isSuperAdmin() ? 'Manage all companies, users, and system settings' :
+                 isCompanyAdmin() ? `Manage ${organization?.name || 'your company'} users and departments` :
+                 `Manage ${department?.name || 'your department'} users and activity`}
+              </p>
             </div>
           </div>
+          {/* Scope Badge */}
+          <Badge
+            className={`${
+              isSuperAdmin() ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' :
+              isCompanyAdmin() ? 'bg-blue-500/20 text-blue-300 border-blue-500/50' :
+              'bg-green-500/20 text-green-300 border-green-500/50'
+            } px-3 py-1`}
+          >
+            {isSuperAdmin() ? (
+              <><Building2 className="w-4 h-4 mr-2" />System Wide</>
+            ) : isCompanyAdmin() ? (
+              <><Building2 className="w-4 h-4 mr-2" />{organization?.name || 'Company'}</>
+            ) : (
+              <><FolderTree className="w-4 h-4 mr-2" />{department?.name || 'Department'}</>
+            )}
+          </Badge>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white/10 border border-white/20">
+          <TabsList className="bg-white/10 border border-white/20 flex-wrap">
             <TabsTrigger value="overview" className="data-[state=active]:bg-white/20 text-white">
               <BarChart3 className="w-4 h-4 mr-2" />
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-white/20 text-white">
-              <Users className="w-4 h-4 mr-2" />
-              Users
             </TabsTrigger>
             <TabsTrigger value="companies" className="data-[state=active]:bg-white/20 text-white">
               <Briefcase className="w-4 h-4 mr-2" />
               Sessions
             </TabsTrigger>
-            <TabsTrigger value="time-savings" className="data-[state=active]:bg-white/20 text-white">
-              <Timer className="w-4 h-4 mr-2" />
-              Time Savings
-            </TabsTrigger>
+            {/* Time Savings tab hidden - keeping code for future use */}
             <TabsTrigger value="saved-prompts" className="data-[state=active]:bg-white/20 text-white">
               <FileText className="w-4 h-4 mr-2" />
               Saved Prompts
             </TabsTrigger>
+            <TabsTrigger value="knowledge-files" className="data-[state=active]:bg-white/20 text-white">
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Knowledge Files
+            </TabsTrigger>
+            {/* Management tabs - role-based visibility */}
+            <TabsTrigger value="user-management" className="data-[state=active]:bg-white/20 text-white">
+              <UserCog className="w-4 h-4 mr-2" />
+              Manage Users
+            </TabsTrigger>
+            {/* Company Settings tab for Company Admins (not Super Admins - they edit via Companies tab) */}
+            {isCompanyAdmin() && !isSuperAdmin() && (
+              <TabsTrigger value="company-settings" className="data-[state=active]:bg-white/20 text-white">
+                <Building2 className="w-4 h-4 mr-2" />
+                Company Settings
+              </TabsTrigger>
+            )}
+            {/* Departments tab only for Company Admins (Super Admins see departments within Companies tab) */}
+            {isCompanyAdmin() && !isSuperAdmin() && (
+              <TabsTrigger value="departments" className="data-[state=active]:bg-white/20 text-white">
+                <FolderTree className="w-4 h-4 mr-2" />
+                Departments
+              </TabsTrigger>
+            )}
+            {isSuperAdmin() && (
+              <TabsTrigger value="access-requests" className="data-[state=active]:bg-white/20 text-white">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Access Requests
+              </TabsTrigger>
+            )}
+            {isSuperAdmin() && (
+              <TabsTrigger value="companies-management" className="data-[state=active]:bg-white/20 text-white">
+                <Building2 className="w-4 h-4 mr-2" />
+                Companies
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Overview Tab */}
@@ -288,7 +344,9 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-blue-200">Total Users</CardDescription>
+                  <CardDescription className="text-blue-200">
+                    {isDeptAdmin ? 'Department Users' : isCompanyAdmin() && !isSuperAdmin() ? 'Company Users' : 'Total Users'}
+                  </CardDescription>
                   <CardTitle className="text-3xl text-white">
                     {stats?.totalUsers || 0}
                   </CardTitle>
@@ -302,7 +360,9 @@ export default function AdminDashboard() {
 
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-blue-200">Total Sessions</CardDescription>
+                  <CardDescription className="text-blue-200">
+                    {isDeptAdmin ? 'Department Sessions' : isCompanyAdmin() && !isSuperAdmin() ? 'Company Sessions' : 'Total Sessions'}
+                  </CardDescription>
                   <CardTitle className="text-3xl text-white">
                     {stats?.totalCompanies || 0}
                   </CardTitle>
@@ -325,15 +385,60 @@ export default function AdminDashboard() {
 
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-blue-200">Admins</CardDescription>
+                  <CardDescription className="text-blue-200">
+                    {isDeptAdmin ? 'Dept Admins' : 'Admins'}
+                  </CardDescription>
                   <CardTitle className="text-3xl text-white">
-                    {(stats?.usersByRole?.ADMIN || 0) + (stats?.usersByRole?.SUPER_ADMIN || 0)}
+                    {isSuperAdmin()
+                      ? (stats?.usersByRole?.ADMIN || 0) + (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0) + (stats?.usersByRole?.SUPER_ADMIN || 0)
+                      : isCompanyAdmin() && !isSuperAdmin()
+                      ? (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
+                      : (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
+                    }
                   </CardTitle>
                 </CardHeader>
               </Card>
             </div>
 
-            {/* Time Savings Summary */}
+            {/* Saved Prompts Summary */}
+            {savedPromptsStats && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-purple-400" />
+                  Saved Prompts Overview
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="text-purple-200">Total Prompts</CardDescription>
+                      <CardTitle className="text-3xl text-white">
+                        {savedPromptsStats.total || 0}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="text-green-200">Productivity Prompts</CardDescription>
+                      <CardTitle className="text-3xl text-white">
+                        {savedPromptsStats.byType?.productivity || 0}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-500/30">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="text-blue-200">Performance Prompts</CardDescription>
+                      <CardTitle className="text-3xl text-white">
+                        {savedPromptsStats.byType?.performance || 0}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* Time Savings Summary - Hidden for now, keeping code for future use
             {timeStudyStats && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -385,109 +490,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-          </TabsContent>
-
-          {/* Users Tab */}
-          <TabsContent value="users" className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Search by email or name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="bg-white/10 border-white/20 text-white placeholder-blue-300"
-              />
-              <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
-                <Search className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <Card className="bg-white/10 border-white/20">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-4 text-blue-200 font-medium">User</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Role</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Sessions</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Last Login</th>
-                        <th className="text-right p-4 text-blue-200 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.data?.map((u) => (
-                        <tr key={u.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="p-4">
-                            <div>
-                              <p className="text-white font-medium">{u.name || 'Unknown'}</p>
-                              <p className="text-blue-300 text-sm">{u.email}</p>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              variant="outline"
-                              className={
-                                u.role === 'SUPER_ADMIN'
-                                  ? 'border-purple-400 text-purple-300'
-                                  : u.role === 'ADMIN'
-                                  ? 'border-blue-400 text-blue-300'
-                                  : 'border-gray-400 text-gray-300'
-                              }
-                            >
-                              {u.role}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-white">{u.companiesCount || 0}</td>
-                          <td className="p-4 text-blue-300 text-sm">
-                            {formatDate(u.lastLoginAt)}
-                          </td>
-                          <td className="p-4 text-right">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => viewUserDetails(u.id)}
-                              className="text-blue-300 hover:text-white hover:bg-white/10"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {users.pagination?.totalPages > 1 && (
-                  <div className="flex items-center justify-between p-4 border-t border-white/10">
-                    <p className="text-blue-300 text-sm">
-                      Page {users.pagination.page} of {users.pagination.totalPages}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => loadUsers(userPage - 1, searchQuery)}
-                        disabled={userPage <= 1}
-                        className="border-white/20 text-white"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => loadUsers(userPage + 1, searchQuery)}
-                        disabled={userPage >= users.pagination.totalPages}
-                        className="border-white/20 text-white"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            */}
           </TabsContent>
 
           {/* Companies/Sessions Tab */}
@@ -574,19 +577,19 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadCompanies(companyPage - 1, searchQuery, companySort)}
                         disabled={companyPage <= 1}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadCompanies(companyPage + 1, searchQuery, companySort)}
                         disabled={companyPage >= companies.pagination.totalPages}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -597,9 +600,8 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Time Savings Tab */}
+          {/* Time Savings Tab - Hidden for now, keeping code for future use
           <TabsContent value="time-savings" className="space-y-4">
-            {/* Summary Stats */}
             {timeStudyStats && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
@@ -706,7 +708,6 @@ export default function AdminDashboard() {
                   </table>
                 </div>
 
-                {/* Pagination */}
                 {timeStudies.pagination?.totalPages > 1 && (
                   <div className="flex items-center justify-between p-4 border-t border-white/10">
                     <p className="text-blue-300 text-sm">
@@ -715,19 +716,19 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadTimeStudies(timeStudyPage - 1)}
                         disabled={timeStudyPage <= 1}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadTimeStudies(timeStudyPage + 1)}
                         disabled={timeStudyPage >= timeStudies.pagination.totalPages}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -737,6 +738,7 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+          */}
 
           {/* Saved Prompts Tab */}
           <TabsContent value="saved-prompts" className="space-y-4">
@@ -787,6 +789,22 @@ export default function AdminDashboard() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSavedPromptsSearch()}
                 className="bg-white/10 border-white/20 text-white placeholder-blue-300 flex-1 min-w-[200px]"
               />
+              {isSuperAdmin() && (
+                <Select value={savedPromptsUserFilter || '__all__'} onValueChange={(val) => handleSavedPromptsUserFilterChange(val === '__all__' ? '' : val)}>
+                  <SelectTrigger className="w-[200px] bg-white/10 border-white/20 text-white">
+                    <Users className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="All Users" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Users</SelectItem>
+                    {allUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={savedPromptsFilter} onValueChange={handleSavedPromptsFilterChange}>
                 <SelectTrigger className="w-[150px] bg-white/10 border-white/20 text-white">
                   <Filter className="w-4 h-4 mr-2" />
@@ -822,8 +840,7 @@ export default function AdminDashboard() {
                     <thead>
                       <tr className="border-b border-white/10">
                         <th className="text-left p-4 text-blue-200 font-medium">Deliverable</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Type</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Column</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Category</th>
                         <th className="text-left p-4 text-blue-200 font-medium">User</th>
                         <th className="text-left p-4 text-blue-200 font-medium">Session</th>
                         <th className="text-left p-4 text-blue-200 font-medium">Created</th>
@@ -838,18 +855,6 @@ export default function AdminDashboard() {
                             <p className="text-blue-300 text-sm truncate max-w-[200px]">
                               {prompt.overview?.substring(0, 60)}...
                             </p>
-                          </td>
-                          <td className="p-4">
-                            <Badge
-                              variant="outline"
-                              className={
-                                prompt.deliverable_type === 'productivity'
-                                  ? 'border-green-400 text-green-300'
-                                  : 'border-blue-400 text-blue-300'
-                              }
-                            >
-                              {prompt.deliverable_type}
-                            </Badge>
                           </td>
                           <td className="p-4 text-white text-sm">
                             {prompt.column_name || '-'}
@@ -880,7 +885,7 @@ export default function AdminDashboard() {
                       ))}
                       {(!savedPrompts.data || savedPrompts.data.length === 0) && (
                         <tr>
-                          <td colSpan="7" className="p-8 text-center text-blue-300">
+                          <td colSpan="6" className="p-8 text-center text-blue-300">
                             No saved prompts found. Users save prompts when generating deliverable content.
                           </td>
                         </tr>
@@ -899,19 +904,19 @@ export default function AdminDashboard() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadSavedPrompts(savedPromptsPage - 1)}
                         disabled={savedPromptsPage <= 1}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         onClick={() => loadSavedPrompts(savedPromptsPage + 1)}
                         disabled={savedPromptsPage >= savedPrompts.pagination.totalPages}
-                        className="border-white/20 text-white"
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -921,78 +926,46 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Knowledge Files Tab */}
+          <TabsContent value="knowledge-files" className="space-y-4">
+            <KnowledgeFileManager />
+          </TabsContent>
+
+          {/* User Management Tab */}
+          <TabsContent value="user-management" className="space-y-4">
+            <UserManager />
+          </TabsContent>
+
+          {/* Company Settings Tab (Company Admins only) */}
+          {isCompanyAdmin() && !isSuperAdmin() && (
+            <TabsContent value="company-settings" className="space-y-4">
+              <OrganizationSettings />
+            </TabsContent>
+          )}
+
+          {/* Departments Tab (Company Admins only - Super Admins see departments within Companies tab) */}
+          {isCompanyAdmin() && !isSuperAdmin() && (
+            <TabsContent value="departments" className="space-y-4">
+              <DepartmentManager />
+            </TabsContent>
+          )}
+
+          {/* Access Requests Tab (Super Admin only) */}
+          {isSuperAdmin() && (
+            <TabsContent value="access-requests" className="space-y-4">
+              <AccessRequestManager />
+            </TabsContent>
+          )}
+
+          {/* Companies Tab (Super Admin only) */}
+          {isSuperAdmin() && (
+            <TabsContent value="companies-management" className="space-y-4">
+              <CompanyManager />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
-
-      {/* User Details Dialog */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <DialogContent className="sm:max-w-2xl bg-slate-900 border-white/20 text-white">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-400" />
-              User Details
-            </DialogTitle>
-            <DialogDescription>View and manage user information</DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-blue-300 text-sm">Name</p>
-                  <p className="text-white">{selectedUser.name || 'Not set'}</p>
-                </div>
-                <div>
-                  <p className="text-blue-300 text-sm">Email</p>
-                  <p className="text-white">{selectedUser.email}</p>
-                </div>
-                <div>
-                  <p className="text-blue-300 text-sm">Role</p>
-                  <Badge variant="outline" className="border-blue-400 text-blue-300">
-                    {selectedUser.role}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-blue-300 text-sm">Total Sessions</p>
-                  <p className="text-white">{selectedUser.companiesCount}</p>
-                </div>
-                <div>
-                  <p className="text-blue-300 text-sm">Created</p>
-                  <p className="text-white">{formatDate(selectedUser.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-blue-300 text-sm">Last Login</p>
-                  <p className="text-white">{formatDate(selectedUser.lastLoginAt)}</p>
-                </div>
-              </div>
-
-              {selectedUser.companies?.length > 0 && (
-                <div>
-                  <p className="text-blue-300 text-sm mb-2">Recent Sessions</p>
-                  <ScrollArea className="h-48">
-                    <div className="space-y-2">
-                      {selectedUser.companies.map((c) => (
-                        <div
-                          key={c.id}
-                          className="p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10"
-                          onClick={() => {
-                            setSelectedUser(null);
-                            viewCompanyDetails(c.id);
-                          }}
-                        >
-                          <p className="text-white font-medium">{c.job_title}</p>
-                          <p className="text-blue-300 text-sm">
-                            {c.industry} • {formatDate(c.created_date)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Company Details Dialog */}
       <Dialog open={!!selectedCompany} onOpenChange={() => setSelectedCompany(null)}>

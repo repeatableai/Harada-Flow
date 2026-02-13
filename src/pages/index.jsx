@@ -2,6 +2,11 @@ import Layout from "./Layout.jsx";
 
 import Home from "./Home";
 import AdminDashboard from "./AdminDashboard";
+import Settings from "./Settings";
+import ForgotPassword from "@/components/auth/ForgotPassword";
+import ResetPassword from "@/components/auth/ResetPassword";
+import SetPassword from "@/components/auth/SetPassword";
+import RequestAccess from "@/components/auth/RequestAccess";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -27,7 +32,19 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
-    
+
+    // Password reset and access request pages don't need Layout wrapper
+    if (['/forgot-password', '/reset-password', '/set-password', '/request-access'].includes(location.pathname)) {
+        return (
+            <Routes>
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/set-password" element={<SetPassword />} />
+                <Route path="/request-access" element={<RequestAccess />} />
+            </Routes>
+        );
+    }
+
     return (
         <Layout currentPageName={currentPage}>
             <Routes>
@@ -35,6 +52,7 @@ function PagesContent() {
                 <Route path="/home" element={<Home />} />
                 <Route path="/Home" element={<Home />} />
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/settings" element={<Settings />} />
             </Routes>
         </Layout>
     );

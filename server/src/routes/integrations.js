@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.js';
 import { invokeLLM } from '../services/llm.service.js';
+import { checkTrialUserDeliverableLimit } from '../services/auth.service.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -27,6 +29,15 @@ const invokeLLMSchema = z.object({
 // POST /api/integrations/llm - Invoke LLM
 router.post('/llm', async (req, res, next) => {
   try {
+    // Check trial user deliverable limit before allowing LLM generation
+    const trialStatus = await checkTrialUserDeliverableLimit(req.user.id);
+    if (trialStatus.isTrialUser && !trialStatus.canSave) {
+      throw new AppError(
+        `Trial account limit reached. You have saved ${trialStatus.deliverableLimit} deliverables. Please contact an administrator to upgrade your account for full access.`,
+        403
+      );
+    }
+
     const data = invokeLLMSchema.parse(req.body);
 
     const result = await invokeLLM({

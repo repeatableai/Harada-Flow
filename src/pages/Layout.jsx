@@ -4,20 +4,81 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, RefreshCw, LogOut, Shield, User, Settings } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LayoutGrid, RefreshCw, LogOut, Shield, User, Building2, FolderTree, Settings, ChevronDown } from "lucide-react";
 import { usePermissions } from "@/components/common/usePermissions";
 import SessionWarning from "@/components/auth/SessionWarning";
 import { useAuth } from "@/components/auth/AuthProvider";
+
+function getInitials(name, email) {
+  if (name && name.trim()) {
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0].substring(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.substring(0, 2).toUpperCase();
+  }
+  return '??';
+}
 
 export default function Layout({ children }) {
   const { hasPermission, isLoading } = usePermissions();
   const { user: currentUser, logout } = useAuth();
 
+  // Check if user has any admin role (includes all admin levels in hierarchy)
   const isAdmin = currentUser && (
+    currentUser.role === 'DEPARTMENT_ADMIN' ||
+    currentUser.role === 'COMPANY_ADMIN' ||
     currentUser.role === 'ADMIN' ||
     currentUser.role === 'SUPER_ADMIN' ||
     currentUser.userType === 'superadmin'
   );
+
+  // Helper to get badge styling and text based on role
+  const getRoleBadgeInfo = () => {
+    if (!currentUser) return null;
+
+    const role = currentUser.role;
+
+    if (role === 'SUPER_ADMIN' || currentUser.userType === 'superadmin') {
+      return {
+        gradient: 'bg-gradient-to-r from-purple-500 to-pink-600',
+        icon: Shield,
+        label: 'Super Admin'
+      };
+    }
+    if (role === 'COMPANY_ADMIN' || role === 'ADMIN') {
+      return {
+        gradient: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+        icon: Building2,
+        label: 'Company Admin'
+      };
+    }
+    if (role === 'DEPARTMENT_ADMIN') {
+      return {
+        gradient: 'bg-gradient-to-r from-green-500 to-emerald-600',
+        icon: FolderTree,
+        label: 'Dept Admin'
+      };
+    }
+    return {
+      gradient: 'bg-gradient-to-r from-slate-500 to-slate-600',
+      icon: User,
+      label: 'User'
+    };
+  };
+
+  const roleBadge = getRoleBadgeInfo();
 
   const handleLogout = async () => {
     await logout();
@@ -56,42 +117,29 @@ export default function Layout({ children }) {
             </Link>
             
             <div className="flex items-center space-x-4">
-              {currentUser && (
-                <Badge 
-                  className={`${
-                    currentUser.userType === 'superadmin' 
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-600' 
-                      : 'bg-gradient-to-r from-blue-500 to-cyan-600'
-                  } text-white flex items-center gap-1`}
+              {currentUser && roleBadge && (
+                <Badge
+                  className={`${roleBadge.gradient} text-white flex items-center gap-1`}
                 >
-                  {currentUser.userType === 'superadmin' ? (
-                    <>
-                      <Shield className="w-3 h-3" />
-                      Super Admin
-                    </>
-                  ) : (
-                    <>
-                      <User className="w-3 h-3" />
-                      User
-                    </>
-                  )}
+                  <roleBadge.icon className="w-3 h-3" />
+                  {roleBadge.label}
                 </Badge>
               )}
               {isAdmin && (
                 <Link to="/admin">
                   <Button
-                    variant="outline"
-                    className="bg-purple-500/20 border-purple-400/30 text-purple-200 hover:bg-purple-500/30"
+                    variant="ghost"
+                    className="bg-purple-500/20 border border-purple-400/30 text-purple-200 hover:bg-purple-500/30"
                   >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Admin
+                    <LayoutGrid className="w-4 h-4 mr-2" />
+                    Dashboard
                   </Button>
                 </Link>
               )}
               <Link to="/?start=new">
                   <Button
-                    variant="outline"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    variant="ghost"
+                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={!isLoading && !hasPermission('can_start_new_role')}
                     title={!isLoading && !hasPermission('can_start_new_role') ? "You don't have permission to start a new role" : "Start a new role session"}
                   >
@@ -99,14 +147,51 @@ export default function Layout({ children }) {
                     New Role
                   </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                onClick={handleLogout} 
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
+
+              {/* User Menu Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="bg-white/10 border border-white/20 text-white hover:bg-white/20 flex items-center gap-2"
+                  >
+                    <Avatar className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600">
+                      <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                        {getInitials(currentUser?.name, currentUser?.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline max-w-[120px] truncate">
+                      {currentUser?.name || currentUser?.email?.split('@')[0] || 'User'}
+                    </span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-slate-900 border-white/20">
+                  <div className="px-3 py-2">
+                    <p className="text-sm text-white font-medium truncate">
+                      {currentUser?.name || 'User'}
+                    </p>
+                    <p className="text-xs text-blue-300 truncate">
+                      {currentUser?.email}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem asChild className="text-blue-200 hover:text-white focus:text-white focus:bg-white/10 cursor-pointer">
+                    <Link to="/settings" className="flex items-center">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Account Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-300 hover:text-red-200 focus:text-red-200 focus:bg-red-500/20 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="hidden md:flex items-center space-x-3 pl-4 border-l border-white/20">
                 <span className="text-sm text-blue-200">Powered by</span>
                 <img 

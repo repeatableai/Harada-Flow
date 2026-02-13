@@ -1,9 +1,10 @@
 import cheerio from 'cheerio';
 import fetch from 'node-fetch';
 
-const MAX_CONTENT_LENGTH = 15000; // Max chars to include in context
-const MAX_PAGES = 5; // Max pages to scrape
-const TIMEOUT = 10000; // 10 second timeout per request
+const MAX_CONTENT_LENGTH = 30000; // Max chars to include in context
+const MAX_PAGES = 12; // Max pages to scrape
+const TIMEOUT = 15000; // 15 second timeout per request
+const MAX_LINKS_PER_PAGE = 5; // Max links to follow from each page
 
 /**
  * Scrapes a company website and returns relevant text content
@@ -114,6 +115,7 @@ async function scrapePage(url) {
 function extractMainContent($) {
   // Try to find main content areas
   const contentSelectors = [
+    // Standard content containers
     'main',
     'article',
     '[role="main"]',
@@ -121,14 +123,49 @@ function extractMainContent($) {
     '.main-content',
     '#content',
     '#main',
+    '.page-content',
+    '.entry-content',
+    // Company info sections
     '.about',
     '.about-us',
+    '.about-section',
     '.company',
-    '.services',
-    '.products',
+    '.company-info',
+    '.who-we-are',
+    '.our-story',
+    // Team & leadership
     '.team',
+    '.team-section',
+    '.leadership',
+    '.executives',
+    '.founders',
+    // Mission & values
     '.mission',
+    '.vision',
     '.values',
+    '.culture',
+    '.purpose',
+    // Products & services
+    '.services',
+    '.services-section',
+    '.products',
+    '.solutions',
+    '.offerings',
+    '.capabilities',
+    '.features',
+    // Case studies & clients
+    '.clients',
+    '.customers',
+    '.case-studies',
+    '.portfolio',
+    '.testimonials',
+    // Other content
+    '.hero',
+    '.hero-section',
+    '.intro',
+    '.overview',
+    '.description',
+    '.summary',
   ];
 
   let content = '';
@@ -161,10 +198,21 @@ function findRelevantLinks(html, baseUrl, visited) {
 
   // Keywords that indicate relevant pages
   const relevantKeywords = [
-    'about', 'company', 'team', 'mission', 'values', 'culture',
-    'services', 'products', 'solutions', 'what-we-do',
-    'careers', 'jobs', 'work-with-us',
-    'contact', 'leadership', 'story', 'history',
+    // Company info
+    'about', 'about-us', 'company', 'who-we-are', 'our-story', 'story', 'history',
+    'team', 'leadership', 'executives', 'founders', 'management', 'people',
+    'mission', 'vision', 'values', 'culture', 'purpose', 'principles',
+    // Products & services
+    'services', 'products', 'solutions', 'offerings', 'what-we-do', 'capabilities',
+    'features', 'platform', 'technology', 'industries', 'sectors',
+    // Business info
+    'clients', 'customers', 'case-studies', 'success-stories', 'portfolio', 'work',
+    'partners', 'partnerships', 'investors', 'press', 'news', 'blog',
+    // Careers & contact
+    'careers', 'jobs', 'work-with-us', 'join', 'opportunities',
+    'contact', 'locations', 'offices', 'headquarters',
+    // Other valuable pages
+    'faq', 'how-it-works', 'why', 'benefits', 'pricing', 'plans',
   ];
 
   $('a[href]').each((_, element) => {
@@ -199,7 +247,7 @@ function findRelevantLinks(html, baseUrl, visited) {
     }
   });
 
-  return links.slice(0, 3); // Limit links per page
+  return links.slice(0, MAX_LINKS_PER_PAGE); // Limit links per page
 }
 
 function formatScrapedContent(pages, hostname) {

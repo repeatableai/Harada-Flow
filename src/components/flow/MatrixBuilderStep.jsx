@@ -213,9 +213,9 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
         {/* Header */}
         <div className="text-center mb-8">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={onStartOver}
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20 mb-4"
+              className="bg-white/10 border border-white/20 text-white hover:bg-white/20 mb-4"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Start Over with a New Role
@@ -277,11 +277,11 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
           <div className="space-y-8">
             <div className="flex justify-center">
               <div className="flex gap-4">
-                <Button variant="outline" onClick={() => setEditingMatrix(editingMatrix === 'productivity' ? null : 'productivity')} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <Button variant="ghost" onClick={() => setEditingMatrix(editingMatrix === 'productivity' ? null : 'productivity')} className="bg-white/10 border border-white/20 text-white hover:bg-white/20">
                   <Edit3 className="w-4 h-4 mr-2" />
                   Edit Productivity Matrix
                 </Button>
-                <Button variant="outline" onClick={() => setEditingMatrix(editingMatrix === 'performance' ? null : 'performance')} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <Button variant="ghost" onClick={() => setEditingMatrix(editingMatrix === 'performance' ? null : 'performance')} className="bg-white/10 border border-white/20 text-white hover:bg-white/20">
                   <Edit3 className="w-4 h-4 mr-2" />
                   Edit Performance Matrix
                 </Button>

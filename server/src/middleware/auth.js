@@ -26,6 +26,21 @@ export async function authenticate(req, res, next) {
         sessionExpiry: true,
         createdAt: true,
         lastLoginAt: true,
+        organizationId: true,
+        departmentId: true,
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 

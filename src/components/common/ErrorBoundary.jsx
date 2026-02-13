@@ -67,9 +67,9 @@ export class ErrorBoundary extends React.Component {
                   Reload Page
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => this.setState({ hasError: false, error: null })}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
                 >
                   Try Again
                 </Button>

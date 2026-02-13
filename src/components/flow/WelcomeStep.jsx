@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Company, User as UserApi } from "@/api/entities";
-import { Sparkles, Building, User, Globe, ArrowRight } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -20,13 +20,38 @@ export default function WelcomeStep({ onCompanyCreated }) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [isPreFilled, setIsPreFilled] = useState(false);
 
   useEffect(() => {
-    // Pre-fill job title from user profile if available
-    if (currentUser && currentUser.jobTitle) {
-      setFormData(prev => ({ ...prev, job_title: currentUser.jobTitle }));
-    } else if (currentUser && currentUser.job_title) {
-      setFormData(prev => ({ ...prev, job_title: currentUser.job_title }));
+    // Pre-fill form from user profile and organization data
+    if (currentUser) {
+      const org = currentUser.organization;
+      const updates = {};
+      let hasOrgData = false;
+
+      // Pre-fill job title from user profile
+      if (currentUser.jobTitle || currentUser.job_title) {
+        updates.job_title = currentUser.jobTitle || currentUser.job_title;
+      }
+
+      // Pre-fill from organization data if available
+      if (org?.industry) {
+        updates.industry = org.industry;
+        hasOrgData = true;
+      }
+      if (org?.companySize) {
+        updates.company_size = org.companySize;
+        hasOrgData = true;
+      }
+      if (org?.website) {
+        updates.company_url = org.website;
+        hasOrgData = true;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        setFormData(prev => ({ ...prev, ...updates }));
+      }
+      setIsPreFilled(hasOrgData);
     }
   }, [currentUser]);
 
@@ -106,6 +131,14 @@ export default function WelcomeStep({ onCompanyCreated }) {
               </p>
             </CardHeader>
             <CardContent>
+              {isPreFilled && (
+                <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                  <p className="text-blue-200 text-sm">
+                    Your company information has been pre-filled. Feel free to review and adjust as needed.
+                  </p>
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -162,7 +195,7 @@ export default function WelcomeStep({ onCompanyCreated }) {
                   <div className="space-y-3">
                     <Label htmlFor="company_url" className="text-white font-medium flex items-center gap-2">
                       <Globe className="w-4 h-4 text-blue-400" />
-                      Company Website (Optional)
+                      Company Website
                     </Label>
                     <Input
                       id="company_url"

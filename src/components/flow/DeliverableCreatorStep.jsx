@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/api/integrations";
 import { SavedPrompt } from "@/api/entities";
+import { apiClient } from "@/api/apiClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus } from "lucide-react";
+import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -22,6 +23,20 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   const [isGenerating, setIsGenerating] = useState(false);
   const [step, setStep] = useState('select'); // select, generate, view
   const [activeTab, setActiveTab] = useState('create');
+  const [trialStatus, setTrialStatus] = useState(null);
+
+  // Check trial user status on mount
+  useEffect(() => {
+    const checkTrialStatus = async () => {
+      try {
+        const status = await apiClient.auth.getTrialStatus();
+        setTrialStatus(status);
+      } catch (error) {
+        console.error("Failed to check trial status:", error);
+      }
+    };
+    checkTrialStatus();
+  }, []);
 
   if (!company) {
     return <LoadingOverlay message="Loading session..." />;
@@ -171,11 +186,28 @@ Return the data in JSON format with this structure:
       }
     } catch (error) {
       console.error("Error generating prompts:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate prompts. Please try again.",
-        variant: "destructive",
-      });
+
+      // Check if it's a trial limit error
+      if (error.status === 403 && error.message?.includes('Trial account limit')) {
+        toast({
+          title: "Trial Limit Reached",
+          description: "You have reached your trial account limit. Please contact an administrator to upgrade your account.",
+          variant: "destructive",
+        });
+        // Refresh trial status
+        try {
+          const status = await apiClient.auth.getTrialStatus();
+          setTrialStatus(status);
+        } catch (e) {
+          // Ignore refresh error
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to generate prompts. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
     
     setIsGenerating(false);
@@ -187,6 +219,8 @@ Return the data in JSON format with this structure:
     setStep('select');
   };
 
+  const isTrialLimitReached = trialStatus?.isTrialUser && !trialStatus?.canSave;
+
   const renderCreateTab = () => (
     <>
       <AnimatePresence>
@@ -194,6 +228,24 @@ Return the data in JSON format with this structure:
           <LoadingOverlay message="Generating comprehensive prompts for your deliverable..." />
         )}
       </AnimatePresence>
+
+      {/* Trial User Limit Warning */}
+      {isTrialLimitReached && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <Card className="bg-amber-500/20 border-amber-500/50">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
+              <div>
+                <p className="text-amber-200 font-medium">Trial Account Limit Reached</p>
+                <p className="text-amber-300/80 text-sm">
+                  You have saved {trialStatus.deliverablesUsed} of {trialStatus.deliverableLimit} deliverables.
+                  Please contact an administrator to upgrade your account for full access.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {step === 'select' && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
@@ -235,12 +287,16 @@ Return the data in JSON format with this structure:
                 We'll generate detailed, sequential prompts that you can copy and paste into any LLM to create this deliverable.
               </p>
               <div className="flex gap-4 justify-center">
-                <Button variant="outline" onClick={resetSelection} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <Button variant="ghost" onClick={resetSelection} className="bg-white/10 border border-white/20 text-white hover:bg-white/20">
                   Choose Different
                 </Button>
-                <Button onClick={generatePrompts} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6">
+                <Button
+                  onClick={generatePrompts}
+                  disabled={isTrialLimitReached}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  Generate Prompts
+                  {isTrialLimitReached ? 'Limit Reached' : 'Generate Prompts'}
                 </Button>
               </div>
             </CardContent>
@@ -262,9 +318,9 @@ Return the data in JSON format with this structure:
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-4 mb-4">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => onStartOver(company)}
-              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Matrices

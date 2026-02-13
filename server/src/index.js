@@ -12,6 +12,9 @@ import adminRoutes from './routes/admin.js';
 import integrationsRoutes from './routes/integrations.js';
 import promptsRoutes from './routes/prompts.js';
 import timeStudiesRoutes from './routes/timeStudies.js';
+import organizationsRoutes from './routes/organizations.js';
+import departmentsRoutes from './routes/departments.js';
+import knowledgeFilesRoutes from './routes/knowledgeFiles.js';
 
 const app = express();
 
@@ -37,6 +40,13 @@ app.use('/api/integrations', integrationsRoutes);
 app.use('/api/prompts', promptsRoutes);
 // Also mount prompt creation under companies for cleaner API
 app.use('/api', promptsRoutes);
+
+// Organization/Department hierarchy routes
+app.use('/api/organizations', organizationsRoutes);
+app.use('/api', departmentsRoutes); // Handles both /organizations/:orgId/departments and /departments/:id
+
+// Knowledge file management routes
+app.use('/api/knowledge-files', knowledgeFilesRoutes);
 
 // Error handler
 app.use(errorHandler);
