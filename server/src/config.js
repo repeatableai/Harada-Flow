@@ -32,7 +32,7 @@ export default {
 
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
-    model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-5-20251101',
+    model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
   },
 
   // Session durations
