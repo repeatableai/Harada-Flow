@@ -534,7 +534,7 @@ class ApiClient {
 
   // Knowledge Files API
   knowledgeFiles = {
-    upload: async (file, scope, departmentIds = [], description = '', organizationId = null) => {
+    upload: async (file, scope, departmentIds = [], description = '', organizationId = null, _isRetry = false) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('scope', scope);
@@ -560,6 +560,16 @@ class ApiClient {
         body: formData,
         credentials: 'include',
       });
+
+      // Handle 401 - attempt token refresh
+      if (response.status === 401 && !_isRetry) {
+        const refreshed = await this.refreshToken();
+        if (refreshed) {
+          return this.knowledgeFiles.upload(file, scope, departmentIds, description, organizationId, true);
+        }
+        window.dispatchEvent(new CustomEvent('auth-required'));
+        throw new Error('Not authenticated');
+      }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Upload failed' }));
