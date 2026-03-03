@@ -17,6 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Users,
   Search,
   ChevronLeft,
@@ -121,6 +126,8 @@ export default function UserManager() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [departmentSearchText, setDepartmentSearchText] = useState('');
+  const [showDeptSuggestions, setShowDeptSuggestions] = useState(false);
 
   useEffect(() => {
     loadUsers(1);
@@ -374,6 +381,8 @@ export default function UserManager() {
       organizationId: organization?.id || '',
       departmentId: '',
     });
+    setDepartmentSearchText('');
+    setShowDeptSuggestions(false);
   };
 
   const openEditRoleDialog = (usr) => {
@@ -1235,27 +1244,87 @@ export default function UserManager() {
                     <div className="space-y-2">
                       <Label className="text-white flex items-center gap-2">
                         <FolderTree className="w-4 h-4 text-green-400" />
-                        Department *
+                        Department
+                        <span className="text-blue-300/70 text-xs font-normal">(optional)</span>
                       </Label>
-                      <Select
-                        value={formData.departmentId || '__placeholder__'}
-                        onValueChange={(val) => setFormData({ ...formData, departmentId: val === '__placeholder__' ? '' : val })}
-                      >
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.length === 0 ? (
-                            <SelectItem value="__placeholder__" disabled>No departments available</SelectItem>
-                          ) : (
-                            departments.map((dept) => (
-                              <SelectItem key={dept.id} value={dept.id}>
-                                {dept.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                      <Popover open={showDeptSuggestions} onOpenChange={setShowDeptSuggestions}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              value={departmentSearchText}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setDepartmentSearchText(value);
+                                setShowDeptSuggestions(true);
+                                // Clear departmentId if user is typing a new value
+                                if (formData.departmentId) {
+                                  const selectedDept = departments.find(d => d.id === formData.departmentId);
+                                  if (selectedDept && selectedDept.name !== value) {
+                                    setFormData({ ...formData, departmentId: '' });
+                                  }
+                                }
+                              }}
+                              onFocus={() => setShowDeptSuggestions(true)}
+                              placeholder="Start typing to search departments..."
+                              className="bg-white/10 border-white/20 text-white placeholder-blue-300/50"
+                            />
+                            {formData.departmentId && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData({ ...formData, departmentId: '' });
+                                  setDepartmentSearchText('');
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-[var(--radix-popover-trigger-width)] p-0 bg-slate-800 border-white/20"
+                          align="start"
+                          onOpenAutoFocus={(e) => e.preventDefault()}
+                        >
+                          <div className="max-h-48 overflow-y-auto">
+                            {departments.length === 0 ? (
+                              <div className="px-3 py-2 text-sm text-blue-300/70">
+                                No departments available
+                              </div>
+                            ) : (
+                              departments
+                                .filter(dept =>
+                                  !departmentSearchText ||
+                                  dept.name.toLowerCase().includes(departmentSearchText.toLowerCase())
+                                )
+                                .map((dept) => (
+                                  <button
+                                    key={dept.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({ ...formData, departmentId: dept.id });
+                                      setDepartmentSearchText(dept.name);
+                                      setShowDeptSuggestions(false);
+                                    }}
+                                    className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 transition-colors ${
+                                      formData.departmentId === dept.id ? 'bg-green-500/20 text-green-300' : 'text-white'
+                                    }`}
+                                  >
+                                    {dept.name}
+                                  </button>
+                                ))
+                            )}
+                            {departments.length > 0 &&
+                              departmentSearchText &&
+                              !departments.some(d => d.name.toLowerCase().includes(departmentSearchText.toLowerCase())) && (
+                              <div className="px-3 py-2 text-sm text-blue-300/70">
+                                No matching departments
+                              </div>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-white flex items-center gap-2">

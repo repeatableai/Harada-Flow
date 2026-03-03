@@ -74,6 +74,28 @@ const getFileIcon = (mimeType) => {
   return <File className="w-5 h-5 text-gray-400" />;
 };
 
+// Group files by organization for super admin view
+const groupFilesByOrganization = (filesData) => {
+  const grouped = {};
+  filesData?.forEach(file => {
+    const orgName = file.organization?.name || 'System Files';
+    const orgId = file.organization?.id || 'system';
+    if (!grouped[orgId]) {
+      grouped[orgId] = {
+        name: orgName,
+        files: []
+      };
+    }
+    grouped[orgId].files.push(file);
+  });
+  // Sort by organization name, with System Files at the end
+  return Object.entries(grouped).sort((a, b) => {
+    if (a[0] === 'system') return 1;
+    if (b[0] === 'system') return -1;
+    return a[1].name.localeCompare(b[1].name);
+  });
+};
+
 export default function KnowledgeFileManager() {
   const { user, isAdmin, isCompanyAdmin, isSuperAdmin, organization, department } = useAuth();
 
@@ -404,67 +426,150 @@ export default function KnowledgeFileManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {files.data?.map((file) => (
-                    <tr key={file.id} className="border-b border-white/5 hover:bg-white/5">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {getFileIcon(file.mimeType)}
-                          <div>
-                            <p className="text-white font-medium truncate max-w-[200px]" title={file.originalName}>
-                              {file.originalName}
-                            </p>
-                            {file.description && (
-                              <p className="text-blue-300 text-xs truncate max-w-[200px]" title={file.description}>
-                                {file.description}
+                  {/* Super Admin: Show files grouped by company */}
+                  {isSuperAdmin() && files.data?.length > 0 ? (
+                    groupFilesByOrganization(files.data).map(([orgId, orgData]) => (
+                      <React.Fragment key={orgId}>
+                        {/* Company Section Header */}
+                        <tr className="bg-white/5">
+                          <td colSpan="6" className="p-3">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4 text-purple-400" />
+                              <span className="text-purple-300 font-semibold">{orgData.name}</span>
+                              <Badge variant="outline" className="border-purple-400/50 text-purple-300 text-xs ml-2">
+                                {orgData.files.length} {orgData.files.length === 1 ? 'file' : 'files'}
+                              </Badge>
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Files for this company */}
+                        {orgData.files.map((file) => (
+                          <tr key={file.id} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="p-4 pl-8">
+                              <div className="flex items-center gap-3">
+                                {getFileIcon(file.mimeType)}
+                                <div>
+                                  <p className="text-white font-medium truncate max-w-[200px]" title={file.originalName}>
+                                    {file.originalName}
+                                  </p>
+                                  {file.description && (
+                                    <p className="text-blue-300 text-xs truncate max-w-[200px]" title={file.description}>
+                                      {file.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 text-blue-300 text-sm">
+                              {formatFileSize(file.size)}
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline" className={SCOPE_COLORS[file.scope]}>
+                                {file.scope === 'self' && 'Personal'}
+                                {file.scope === 'departments' && 'Departments'}
+                                {file.scope === 'company' && 'Company'}
+                                {file.scope === 'system' && 'System'}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-white text-sm">{file.uploader?.name || 'Unknown'}</p>
+                              <p className="text-blue-300 text-xs">{file.uploader?.email}</p>
+                            </td>
+                            <td className="p-4 text-blue-300 text-sm">
+                              {formatDate(file.createdAt)}
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDownload(file)}
+                                  className="text-blue-300 hover:text-white hover:bg-white/10"
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                                {canDelete(file) && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openDeleteDialog(file)}
+                                    className="text-red-300 hover:text-white hover:bg-red-500/10"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    /* Non-Super Admin: Show flat file list */
+                    files.data?.map((file) => (
+                      <tr key={file.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {getFileIcon(file.mimeType)}
+                            <div>
+                              <p className="text-white font-medium truncate max-w-[200px]" title={file.originalName}>
+                                {file.originalName}
                               </p>
-                            )}
+                              {file.description && (
+                                <p className="text-blue-300 text-xs truncate max-w-[200px]" title={file.description}>
+                                  {file.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-blue-300 text-sm">
-                        {formatFileSize(file.size)}
-                      </td>
-                      <td className="p-4">
-                        <Badge variant="outline" className={SCOPE_COLORS[file.scope]}>
-                          {file.scope === 'self' && 'Personal'}
-                          {file.scope === 'departments' && 'Departments'}
-                          {file.scope === 'company' && 'Company'}
-                          {file.scope === 'system' && 'System'}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <p className="text-white text-sm">{file.uploader?.name || 'Unknown'}</p>
-                        <p className="text-blue-300 text-xs">{file.uploader?.email}</p>
-                      </td>
-                      <td className="p-4 text-blue-300 text-sm">
-                        {formatDate(file.createdAt)}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDownload(file)}
-                            className="text-blue-300 hover:text-white hover:bg-white/10"
-                            title="Download"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          {canDelete(file) && (
+                        </td>
+                        <td className="p-4 text-blue-300 text-sm">
+                          {formatFileSize(file.size)}
+                        </td>
+                        <td className="p-4">
+                          <Badge variant="outline" className={SCOPE_COLORS[file.scope]}>
+                            {file.scope === 'self' && 'Personal'}
+                            {file.scope === 'departments' && 'Departments'}
+                            {file.scope === 'company' && 'Company'}
+                            {file.scope === 'system' && 'System'}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <p className="text-white text-sm">{file.uploader?.name || 'Unknown'}</p>
+                          <p className="text-blue-300 text-xs">{file.uploader?.email}</p>
+                        </td>
+                        <td className="p-4 text-blue-300 text-sm">
+                          {formatDate(file.createdAt)}
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => openDeleteDialog(file)}
-                              className="text-red-300 hover:text-white hover:bg-red-500/10"
-                              title="Delete"
+                              onClick={() => handleDownload(file)}
+                              className="text-blue-300 hover:text-white hover:bg-white/10"
+                              title="Download"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Download className="w-4 h-4" />
                             </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {canDelete(file) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openDeleteDialog(file)}
+                                className="text-red-300 hover:text-white hover:bg-red-500/10"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                   {(!files.data || files.data.length === 0) && (
                     <tr>
                       <td colSpan="6" className="p-8 text-center text-blue-300">
