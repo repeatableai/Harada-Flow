@@ -621,8 +621,8 @@ export default function KnowledgeFileManager() {
 
       {/* Upload Dialog */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="bg-slate-900 border-white/20 text-white sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="bg-slate-900 border-white/20 text-white sm:max-w-lg max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-purple-400" />
               Upload Knowledge File
@@ -632,7 +632,7 @@ export default function KnowledgeFileManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {uploadError && (
               <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
                 {uploadError}
@@ -809,7 +809,7 @@ export default function KnowledgeFileManager() {
             </div>
           </div>
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 flex-shrink-0">
             <Button
               variant="ghost"
               onClick={() => setShowUploadDialog(false)}
