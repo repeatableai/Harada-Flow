@@ -103,6 +103,7 @@ export default function KnowledgeFileManager() {
   const [departments, setDepartments] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scopeFilter, setScopeFilter] = useState('all');
   const [page, setPage] = useState(1);
@@ -153,6 +154,7 @@ export default function KnowledgeFileManager() {
   // Load departments when Super Admin selects an organization
   useEffect(() => {
     if (isSuperAdmin() && selectedOrgId) {
+      setDepartments([]); // Clear previous departments while loading
       loadDepartments(selectedOrgId);
     }
   }, [selectedOrgId]);
@@ -186,12 +188,15 @@ export default function KnowledgeFileManager() {
 
   const loadDepartments = async (orgId) => {
     if (!orgId) return;
+    setIsDepartmentsLoading(true);
     try {
       const result = await apiClient.departments.list(orgId, { limit: 100 });
       setDepartments(result.data || []);
     } catch (error) {
       console.error('Failed to load departments:', error);
       setDepartments([]);
+    } finally {
+      setIsDepartmentsLoading(false);
     }
   };
 
@@ -764,6 +769,11 @@ export default function KnowledgeFileManager() {
                     <p className="text-blue-300 text-sm">
                       Please select a company first
                     </p>
+                  ) : isDepartmentsLoading ? (
+                    <p className="text-blue-300 text-sm flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading departments...
+                    </p>
                   ) : departments.length > 0 ? (
                     departments.map((dept) => (
                       <label
@@ -778,8 +788,8 @@ export default function KnowledgeFileManager() {
                       </label>
                     ))
                   ) : (
-                    <p className="text-blue-300 text-sm">
-                      {(isSuperAdmin() ? selectedOrgId : organization?.id) ? 'Loading departments...' : 'No departments available'}
+                    <p className="text-amber-300 text-sm">
+                      No departments found. Create departments in the Admin Dashboard first.
                     </p>
                   )}
                 </div>
