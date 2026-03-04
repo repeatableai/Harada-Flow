@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Company } from "@/api/entities";
 import { User } from "@/api/entities";
@@ -16,10 +16,15 @@ export default function HomePage() {
   const [company, setCompany] = useState(null);
   const [user, setUser] = useState(null);
 
+  // Ref to track if we're starting a new role (avoids race condition with loadLatest)
+  const isStartingNewRef = useRef(false);
+
   // Check for start=new parameter and trigger welcome step
   useEffect(() => {
     const startParam = searchParams.get('start');
     if (startParam === 'new') {
+      // Set the ref BEFORE any state changes to ensure loadLatest respects it
+      isStartingNewRef.current = true;
       setCompany(null);
       setStep('welcome');
       // Clear the search param after handling
@@ -34,17 +39,17 @@ export default function HomePage() {
         const currentUser = await User.me();
         setUser(currentUser);
 
-        // Skip loading if start=new is set (handled by the other useEffect)
+        // Skip loading if start=new is set (check both URL and ref for race condition safety)
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('start') === 'new') {
+        if (urlParams.get('start') === 'new' || isStartingNewRef.current) {
           return;
         }
 
         const userCompanies = await Company.filter({ created_by: currentUser.email }, "-created_date", 1);
-        
+
         if (userCompanies.length > 0) {
           const lastCompany = userCompanies[0];
-          
+
           const conformedCompany = {
             ...lastCompany,
             productivity_matrix: sanitizeAndConformMatrix(lastCompany.productivity_matrix, 'productivity'),
@@ -62,14 +67,14 @@ export default function HomePage() {
         }
       } catch (error) {
         console.error("Error loading user data:", error);
-        
+
         // Check if it's an authentication error
-        const isAuthError = error?.message?.includes('Not authenticated') || 
-                           error?.message?.includes('404') || 
-                           error?.message?.includes('not found') || 
+        const isAuthError = error?.message?.includes('Not authenticated') ||
+                           error?.message?.includes('404') ||
+                           error?.message?.includes('not found') ||
                            error?.status === 404 ||
                            error?.response?.status === 404;
-        
+
         if (isAuthError) {
           // MockAuthProvider will handle showing login dialog
           // Just show welcome step for now
@@ -99,6 +104,8 @@ export default function HomePage() {
   };
   
   const handleStartOver = () => {
+    // Set ref to prevent any pending loadLatest from overriding
+    isStartingNewRef.current = true;
     setCompany(null);
     setStep('welcome');
     window.history.replaceState({}, '', window.location.pathname);
