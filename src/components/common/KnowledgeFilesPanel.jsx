@@ -122,8 +122,14 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
   const [userSearchResults, setUserSearchResults] = useState([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
+  // Organization selection state for super admin "organizations" scope
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrganization, setSelectedOrganization] = useState(null);
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false);
+
   // Determine user's admin level
-  const isCompanyAdmin = user?.role === 'COMPANY_ADMIN' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || user?.userType === 'superadmin';
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.userType === 'superadmin';
+  const isCompanyAdmin = user?.role === 'COMPANY_ADMIN' || user?.role === 'ADMIN' || isSuperAdmin;
   const isDepartmentAdmin = user?.role === 'DEPARTMENT_ADMIN';
   const canSetScope = isCompanyAdmin || isDepartmentAdmin;
 
@@ -132,6 +138,9 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
       loadFiles();
       if (canSetScope) {
         loadDepartments();
+      }
+      if (isSuperAdmin) {
+        loadOrganizations();
       }
     }
   }, [open]);
@@ -144,6 +153,7 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
       setSelectedUsers([]);
       setUserSearchTerm('');
       setUserSearchResults([]);
+      setSelectedOrganization(null);
     }
   }, [open]);
 
@@ -160,6 +170,20 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
       setDepartments([]);
     } finally {
       setIsLoadingDepartments(false);
+    }
+  };
+
+  const loadOrganizations = async () => {
+    setIsLoadingOrganizations(true);
+    try {
+      const result = await apiClient.organizations.list();
+      const orgList = Array.isArray(result) ? result : (result?.data || result?.organizations || []);
+      setOrganizations(Array.isArray(orgList) ? orgList : []);
+    } catch (error) {
+      console.error('Failed to load organizations:', error);
+      setOrganizations([]);
+    } finally {
+      setIsLoadingOrganizations(false);
     }
   };
 
@@ -215,9 +239,10 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
     setUploadError('');
     setIsUploading(true);
 
-    // Determine departments and users to share with
+    // Determine departments, users, and organization to share with
     let deptIds = [];
     let userIds = [];
+    let orgId = null;
     let actualScope = selectedScope;
 
     if (selectedScope === 'myDepartment') {
@@ -227,6 +252,10 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
       deptIds = selectedDepartments;
     } else if (selectedScope === 'users') {
       userIds = selectedUsers.map(u => u.id);
+    } else if (selectedScope === 'organizations') {
+      // Super admin uploading for a specific company
+      orgId = selectedOrganization?.id || null;
+      actualScope = 'company'; // Use company scope for the target organization
     }
 
     for (const file of selectedFiles) {
@@ -245,7 +274,7 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
           actualScope,
           deptIds,
           '',
-          null,
+          orgId,
           userIds
         );
       } catch (error) {
@@ -260,6 +289,7 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
     setSelectedDepartments([]);
     setSelectedUsers([]);
     setUserSearchTerm('');
+    setSelectedOrganization(null);
     loadFiles();
     e.target.value = '';
   };
@@ -426,7 +456,15 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
                         <SelectItem value="company" className="text-white hover:bg-white/10">
                           <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-blue-400" />
-                            <span>Entire Company</span>
+                            <span>My Company</span>
+                          </div>
+                        </SelectItem>
+                      )}
+                      {isSuperAdmin && (
+                        <SelectItem value="organizations" className="text-white hover:bg-white/10">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-cyan-400" />
+                            <span>Specific Company</span>
                           </div>
                         </SelectItem>
                       )}
@@ -547,6 +585,46 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
                   </div>
                 )}
 
+                {/* Organization selector - for super admin when "organizations" scope is selected */}
+                {selectedScope === 'organizations' && isSuperAdmin && (
+                  <div className="space-y-2">
+                    <Label className="text-sm text-blue-200">Select Company</Label>
+                    {isLoadingOrganizations ? (
+                      <div className="flex items-center gap-2 text-blue-300 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading companies...
+                      </div>
+                    ) : organizations.length === 0 ? (
+                      <p className="text-sm text-blue-400">No companies found</p>
+                    ) : (
+                      <Select
+                        value={selectedOrganization?.id || ''}
+                        onValueChange={(value) => {
+                          const org = organizations.find(o => o.id === value);
+                          setSelectedOrganization(org || null);
+                        }}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select a company..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-white/20">
+                          {organizations.map(org => (
+                            <SelectItem key={org.id} value={org.id} className="text-white hover:bg-white/10">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-cyan-400" />
+                                <span>{org.name}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {!selectedOrganization && (
+                      <p className="text-xs text-amber-400">Select a company to upload files for</p>
+                    )}
+                  </div>
+                )}
+
                 {/* Info text about current selection */}
                 <div className="text-xs text-blue-400">
                   {selectedScope === 'self' && 'Files will only be visible to you.'}
@@ -559,14 +637,18 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
                     `Files will be visible to ${selectedUsers.length} user(s).`}
                   {selectedScope === 'users' && selectedUsers.length === 0 &&
                     'Search and select users to share with.'}
-                  {selectedScope === 'company' && 'Files will be visible to everyone in your organization.'}
+                  {selectedScope === 'company' && 'Files will be visible to everyone in your company.'}
+                  {selectedScope === 'organizations' && selectedOrganization &&
+                    `Files will be visible to everyone in ${selectedOrganization.name}.`}
+                  {selectedScope === 'organizations' && !selectedOrganization &&
+                    'Select a company to upload files for.'}
                 </div>
               </div>
             )}
 
             <Button
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || (selectedScope === 'departments' && selectedDepartments.length === 0) || (selectedScope === 'myDepartment' && !user?.departmentId) || (selectedScope === 'users' && selectedUsers.length === 0)}
+              disabled={isUploading || (selectedScope === 'departments' && selectedDepartments.length === 0) || (selectedScope === 'myDepartment' && !user?.departmentId) || (selectedScope === 'users' && selectedUsers.length === 0) || (selectedScope === 'organizations' && !selectedOrganization)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               {isUploading ? (
