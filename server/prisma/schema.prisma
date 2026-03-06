@@ -26,6 +26,7 @@ model User {
   isActive       Boolean   @default(true) @map("is_active")
   isTrialUser       Boolean   @default(false) @map("is_trial_user")    // Users from request access
   deliverablesUsed  Int       @default(0) @map("deliverables_used")   // Track saved deliverables for trial users
+  deliverablesLimit Int?      @map("deliverables_limit")              // Max outputs allowed (null = unlimited)
   sessionExpiry  DateTime? @map("session_expiry")
 
   // Organization/Department associations

@@ -46,6 +46,8 @@ export default function AccessRequestManager() {
   const [accessOption, setAccessOption] = useState('indefinite');
   const [accessDays, setAccessDays] = useState(30);
   const [accessDate, setAccessDate] = useState('');
+  const [outputLimit, setOutputLimit] = useState('');
+  const [hasOutputLimit, setHasOutputLimit] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
   // Reject dialog state
@@ -80,6 +82,8 @@ export default function AccessRequestManager() {
     setAccessOption('indefinite');
     setAccessDays(30);
     setAccessDate('');
+    setOutputLimit('');
+    setHasOutputLimit(false);
   };
 
   const handleApproveConfirm = async () => {
@@ -93,15 +97,25 @@ export default function AccessRequestManager() {
       } else if (accessOption === 'date') {
         options.accessExpiry = new Date(accessDate).toISOString();
       }
-      // For 'indefinite', send empty options
+      // For 'indefinite', send empty time options
+
+      // Add output limit if specified
+      if (hasOutputLimit && outputLimit) {
+        options.deliverablesLimit = parseInt(outputLimit);
+      }
 
       await apiClient.admin.approveAccessRequest(approveDialog.request.id, options);
 
-      const accessDescription = accessOption === 'indefinite'
+      // Build description for toast
+      let accessDescription = accessOption === 'indefinite'
         ? 'full access'
         : accessOption === 'days'
         ? `access for ${accessDays} days`
         : `access until ${new Date(accessDate).toLocaleDateString()}`;
+
+      if (hasOutputLimit && outputLimit) {
+        accessDescription += ` with ${outputLimit} outputs`;
+      }
 
       toast({
         title: 'Request Approved',
@@ -238,8 +252,8 @@ export default function AccessRequestManager() {
       <Card className="bg-blue-500/10 border-blue-500/30">
         <CardContent className="p-4">
           <p className="text-blue-200 text-sm">
-            <strong>Access Management:</strong> When approving a request, you can grant indefinite access or set an expiry date.
-            Users can be paused or turned off at any time from the Users management section.
+            <strong>Access Management:</strong> When approving a request, you can set time limits, output limits, or both.
+            Users who hit their output limit enter view-only mode. Users who hit their time limit are locked out completely.
           </p>
         </CardContent>
       </Card>
@@ -420,6 +434,47 @@ export default function AccessRequestManager() {
                 </Label>
               </div>
             </RadioGroup>
+
+            {/* Output Limit Section */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                <input
+                  type="checkbox"
+                  id="hasOutputLimit"
+                  checked={hasOutputLimit}
+                  onChange={(e) => setHasOutputLimit(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/30 bg-white/10"
+                />
+                <Label htmlFor="hasOutputLimit" className="flex-1 cursor-pointer">
+                  <div className="text-white font-medium">Limit number of outputs</div>
+                  <div className="text-blue-300 text-sm">
+                    User enters view-only mode after reaching the limit
+                  </div>
+                </Label>
+              </div>
+
+              {hasOutputLimit && (
+                <div className="mt-3 ml-7">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-200">Allow</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={outputLimit}
+                      onChange={(e) => setOutputLimit(e.target.value)}
+                      placeholder="e.g., 10"
+                      className="w-24 h-8 bg-white/10 border-white/20 text-white text-center"
+                    />
+                    <span className="text-blue-200">outputs</span>
+                  </div>
+                  <p className="text-xs text-blue-400 mt-2">
+                    After using all outputs, user can still view saved work but cannot generate new deliverables.
+                    {accessOption !== 'indefinite' && ' Access is fully revoked when the time limit expires.'}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -432,7 +487,7 @@ export default function AccessRequestManager() {
             </Button>
             <Button
               onClick={handleApproveConfirm}
-              disabled={isApproving || (accessOption === 'date' && !accessDate)}
+              disabled={isApproving || (accessOption === 'date' && !accessDate) || (hasOutputLimit && (!outputLimit || parseInt(outputLimit) < 1))}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isApproving ? (

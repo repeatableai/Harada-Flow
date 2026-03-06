@@ -636,7 +636,7 @@ export async function listAccessRequests(status = null) {
 }
 
 export async function approveAccessRequest(requestId, adminUserId, options = {}) {
-  const { accessExpiry, accessDays } = options;
+  const { accessExpiry, accessDays, deliverablesLimit } = options;
 
   const request = await prisma.accessRequest.findUnique({
     where: { id: requestId },
@@ -680,7 +680,13 @@ export async function approveAccessRequest(requestId, adminUserId, options = {})
     select: { email: true },
   });
 
-  // Create user with full access (not trial) - expiry is optional
+  // Determine if this is a limited/trial user
+  // Trial user = has either a time limit OR an output limit
+  const hasOutputLimit = deliverablesLimit && deliverablesLimit > 0;
+  const hasTimeLimit = !!expiryDate;
+  const isTrialUser = hasOutputLimit || hasTimeLimit;
+
+  // Create user - trial if limits are set
   const newUser = await prisma.user.create({
     data: {
       email: request.email,
@@ -688,9 +694,11 @@ export async function approveAccessRequest(requestId, adminUserId, options = {})
       jobTitle: request.jobTitle,
       passwordHash: request.passwordHash,
       role: 'USER',
-      isTrialUser: false,
-      isPermanent: !expiryDate,
+      isTrialUser,
+      isPermanent: !isTrialUser,
       sessionExpiry: expiryDate,
+      deliverablesLimit: hasOutputLimit ? parseInt(deliverablesLimit) : null,
+      deliverablesUsed: 0,
       isActive: true,
     },
   });
@@ -759,37 +767,75 @@ export async function rejectAccessRequest(requestId, adminUserId, reason = null)
 
 // ============ Trial User Deliverable Limit Functions ============
 
-const TRIAL_USER_DELIVERABLE_LIMIT = 3;
+// Default limit for legacy trial users without a specific limit set
+const DEFAULT_TRIAL_USER_DELIVERABLE_LIMIT = 3;
 
 export async function checkTrialUserDeliverableLimit(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isTrialUser: true, deliverablesUsed: true },
+    select: {
+      isTrialUser: true,
+      deliverablesUsed: true,
+      deliverablesLimit: true,
+      sessionExpiry: true,
+    },
   });
 
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  if (!user.isTrialUser) {
-    return { canSave: true, isTrialUser: false };
+  // Check if time-based access has expired (completely locked out)
+  if (user.sessionExpiry && new Date() > new Date(user.sessionExpiry)) {
+    return {
+      canSave: false,
+      isTrialUser: true,
+      isLockedOut: true,
+      isViewOnly: false,
+      deliverablesUsed: user.deliverablesUsed,
+      deliverableLimit: user.deliverablesLimit,
+      remaining: 0,
+      message: 'Your access period has expired. Please contact an administrator.',
+    };
   }
 
-  const remaining = TRIAL_USER_DELIVERABLE_LIMIT - user.deliverablesUsed;
+  // Not a trial user = full access
+  if (!user.isTrialUser) {
+    return { canSave: true, isTrialUser: false, isLockedOut: false, isViewOnly: false };
+  }
+
+  // Use user's specific limit, or default if not set
+  const limit = user.deliverablesLimit ?? DEFAULT_TRIAL_USER_DELIVERABLE_LIMIT;
+
+  // If no limit set (null) and no default needed, allow unlimited
+  if (user.deliverablesLimit === null && !user.isTrialUser) {
+    return { canSave: true, isTrialUser: false, isLockedOut: false, isViewOnly: false };
+  }
+
+  const remaining = limit - user.deliverablesUsed;
+  const limitReached = user.deliverablesUsed >= limit;
+
+  // View-only mode: output limit reached but time hasn't expired yet
+  const isViewOnly = limitReached && (!user.sessionExpiry || new Date() <= new Date(user.sessionExpiry));
 
   return {
-    canSave: user.deliverablesUsed < TRIAL_USER_DELIVERABLE_LIMIT,
+    canSave: !limitReached,
     isTrialUser: true,
+    isLockedOut: false,
+    isViewOnly,
     deliverablesUsed: user.deliverablesUsed,
-    deliverableLimit: TRIAL_USER_DELIVERABLE_LIMIT,
+    deliverableLimit: limit,
     remaining: Math.max(0, remaining),
+    message: isViewOnly
+      ? `You have used all ${limit} outputs. You can still view your saved work until your access expires.`
+      : null,
   };
 }
 
 export async function incrementTrialUserDeliverables(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isTrialUser: true, deliverablesUsed: true },
+    select: { isTrialUser: true, deliverablesUsed: true, deliverablesLimit: true },
   });
 
   if (!user || !user.isTrialUser) {
@@ -802,13 +848,15 @@ export async function incrementTrialUserDeliverables(userId) {
   });
 
   const newCount = user.deliverablesUsed + 1;
-  const remaining = TRIAL_USER_DELIVERABLE_LIMIT - newCount;
+  const limit = user.deliverablesLimit ?? DEFAULT_TRIAL_USER_DELIVERABLE_LIMIT;
+  const remaining = limit - newCount;
 
   return {
     success: true,
     deliverablesUsed: newCount,
+    deliverableLimit: limit,
     remaining: Math.max(0, remaining),
-    limitReached: newCount >= TRIAL_USER_DELIVERABLE_LIMIT,
+    limitReached: newCount >= limit,
   };
 }
 
