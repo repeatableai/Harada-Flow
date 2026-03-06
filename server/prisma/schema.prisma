@@ -88,6 +88,7 @@ model Company {
 
   savedPrompts       SavedPrompt[]
   timeStudies        TimeStudy[]
+  knowledgeFiles     KnowledgeFile[]
 
   @@index([userId])
   @@index([createdBy])
@@ -103,6 +104,10 @@ model SavedPrompt {
   columnName      String?  @map("column_name")
   overview        String   @db.Text
   prompts         Json     // Array of {step, title, description, prompt}
+
+  // Custom deliverable tracking
+  isCustom        Boolean  @default(false) @map("is_custom")
+  customInput     String?  @map("custom_input") @db.Text  // Original user input for custom deliverables
 
   companyId       String   @map("company_id")
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -210,15 +215,22 @@ model KnowledgeFile {
   uploaderId     String       @map("uploader_id")
   uploader       User         @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
-  // Scope: 'self', 'departments', 'company', 'system'
+  // Scope: 'self', 'departments', 'company', 'system', 'users'
   scope          String       @default("self")
 
   // For 'departments' scope - which departments can access
   departmentIds  String[]     @default([]) @map("department_ids")
 
+  // For 'users' scope - which specific users can access
+  sharedUserIds  String[]     @default([]) @map("shared_user_ids")
+
   // Organization this file belongs to
   organizationId String?      @map("organization_id")
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Optional link to Company (role session) this file was uploaded for
+  companyId      String?      @map("company_id")
+  company        Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   // Metadata
   description    String?
@@ -227,6 +239,7 @@ model KnowledgeFile {
 
   @@index([uploaderId])
   @@index([organizationId])
+  @@index([companyId])
   @@index([scope])
   @@map("knowledge_files")
 }

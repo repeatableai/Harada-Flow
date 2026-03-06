@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -28,6 +30,7 @@ import {
   Filter,
   RefreshCw,
   User,
+  CalendarClock,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -37,6 +40,13 @@ export default function AccessRequestManager() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
   const [processingId, setProcessingId] = useState(null);
+
+  // Approve dialog state
+  const [approveDialog, setApproveDialog] = useState({ open: false, request: null });
+  const [accessOption, setAccessOption] = useState('indefinite');
+  const [accessDays, setAccessDays] = useState(30);
+  const [accessDate, setAccessDate] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
 
   // Reject dialog state
   const [rejectDialog, setRejectDialog] = useState({ open: false, request: null });
@@ -65,14 +75,39 @@ export default function AccessRequestManager() {
     }
   };
 
-  const handleApprove = async (request) => {
-    setProcessingId(request.id);
+  const openApproveDialog = (request) => {
+    setApproveDialog({ open: true, request });
+    setAccessOption('indefinite');
+    setAccessDays(30);
+    setAccessDate('');
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!approveDialog.request) return;
+
+    setIsApproving(true);
     try {
-      await apiClient.admin.approveAccessRequest(request.id);
+      const options = {};
+      if (accessOption === 'days') {
+        options.accessDays = parseInt(accessDays);
+      } else if (accessOption === 'date') {
+        options.accessExpiry = new Date(accessDate).toISOString();
+      }
+      // For 'indefinite', send empty options
+
+      await apiClient.admin.approveAccessRequest(approveDialog.request.id, options);
+
+      const accessDescription = accessOption === 'indefinite'
+        ? 'full access'
+        : accessOption === 'days'
+        ? `access for ${accessDays} days`
+        : `access until ${new Date(accessDate).toLocaleDateString()}`;
+
       toast({
         title: 'Request Approved',
-        description: `${request.name} has been granted trial access. An email has been sent.`,
+        description: `${approveDialog.request.name} has been granted ${accessDescription}. An email has been sent.`,
       });
+      setApproveDialog({ open: false, request: null });
       loadRequests();
     } catch (error) {
       console.error('Failed to approve request:', error);
@@ -82,7 +117,7 @@ export default function AccessRequestManager() {
         variant: 'destructive',
       });
     } finally {
-      setProcessingId(null);
+      setIsApproving(false);
     }
   };
 
@@ -199,12 +234,12 @@ export default function AccessRequestManager() {
         </div>
       </div>
 
-      {/* Info card about trial users */}
-      <Card className="bg-amber-500/10 border-amber-500/30">
+      {/* Info card about user approval */}
+      <Card className="bg-blue-500/10 border-blue-500/30">
         <CardContent className="p-4">
-          <p className="text-amber-200 text-sm">
-            <strong>Trial Users:</strong> Approved requests create trial accounts limited to <strong>3 saved deliverables</strong>.
-            After reaching this limit, users can only view content. Contact support to upgrade accounts.
+          <p className="text-blue-200 text-sm">
+            <strong>Access Management:</strong> When approving a request, you can grant indefinite access or set an expiry date.
+            Users can be paused or turned off at any time from the Users management section.
           </p>
         </CardContent>
       </Card>
@@ -292,24 +327,16 @@ export default function AccessRequestManager() {
                     <div className="flex gap-2 ml-4">
                       <Button
                         size="sm"
-                        onClick={() => handleApprove(request)}
-                        disabled={processingId === request.id}
+                        onClick={() => openApproveDialog(request)}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
-                        {processingId === request.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4 mr-1" />
-                            Approve
-                          </>
-                        )}
+                        <Check className="w-4 h-4 mr-1" />
+                        Approve
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => openRejectDialog(request)}
-                        disabled={processingId === request.id}
                         className="bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/30"
                       >
                         <X className="w-4 h-4 mr-1" />
@@ -323,6 +350,106 @@ export default function AccessRequestManager() {
           ))}
         </div>
       )}
+
+      {/* Approve Dialog with Access Options */}
+      <Dialog open={approveDialog.open} onOpenChange={(open) => !open && setApproveDialog({ open: false, request: null })}>
+        <DialogContent className="bg-slate-900 border-white/20 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-400" />
+              Approve Access Request
+            </DialogTitle>
+            <DialogDescription>
+              Grant access to{' '}
+              <span className="text-white font-medium">{approveDialog.request?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <Label className="text-blue-200">Access Duration</Label>
+            <RadioGroup value={accessOption} onValueChange={setAccessOption} className="space-y-3">
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-green-500/50 cursor-pointer">
+                <RadioGroupItem value="indefinite" id="indefinite" className="border-white/30" />
+                <Label htmlFor="indefinite" className="flex-1 cursor-pointer">
+                  <div className="text-white font-medium">Indefinite access</div>
+                  <div className="text-blue-300 text-sm">Full access until manually paused or turned off</div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-green-500/50 cursor-pointer">
+                <RadioGroupItem value="days" id="days" className="border-white/30" />
+                <Label htmlFor="days" className="flex-1 cursor-pointer">
+                  <div className="text-white font-medium flex items-center gap-2">
+                    Grant access for
+                    <Input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={accessDays}
+                      onChange={(e) => setAccessDays(e.target.value)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAccessOption('days');
+                      }}
+                      className="w-20 h-8 bg-white/10 border-white/20 text-white text-center"
+                    />
+                    days
+                  </div>
+                  <div className="text-blue-300 text-sm">Access will expire automatically after the specified period</div>
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-green-500/50 cursor-pointer">
+                <RadioGroupItem value="date" id="date" className="border-white/30" />
+                <Label htmlFor="date" className="flex-1 cursor-pointer">
+                  <div className="text-white font-medium flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4" />
+                    Grant access until specific date
+                  </div>
+                  <Input
+                    type="date"
+                    value={accessDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setAccessDate(e.target.value)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAccessOption('date');
+                    }}
+                    className="mt-2 w-full bg-white/10 border-white/20 text-white"
+                  />
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApproveDialog({ open: false, request: null })}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApproveConfirm}
+              disabled={isApproving || (accessOption === 'date' && !accessDate)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isApproving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Approve Access
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Confirmation Dialog */}
       <Dialog open={rejectDialog.open} onOpenChange={(open) => !open && setRejectDialog({ open: false, request: null })}>

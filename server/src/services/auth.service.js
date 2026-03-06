@@ -635,7 +635,9 @@ export async function listAccessRequests(status = null) {
   });
 }
 
-export async function approveAccessRequest(requestId, adminUserId) {
+export async function approveAccessRequest(requestId, adminUserId, options = {}) {
+  const { accessExpiry, accessDays } = options;
+
   const request = await prisma.accessRequest.findUnique({
     where: { id: requestId },
   });
@@ -657,13 +659,28 @@ export async function approveAccessRequest(requestId, adminUserId) {
     throw new AppError('A user with this email already exists', 400);
   }
 
+  // Calculate expiry date if provided by super admin
+  let expiryDate = null;
+  if (accessExpiry) {
+    expiryDate = new Date(accessExpiry);
+    if (isNaN(expiryDate.getTime())) {
+      throw new AppError('Invalid accessExpiry date format', 400);
+    }
+    if (expiryDate <= new Date()) {
+      throw new AppError('Access expiry must be in the future', 400);
+    }
+  } else if (accessDays && accessDays > 0) {
+    expiryDate = new Date(Date.now() + accessDays * 24 * 60 * 60 * 1000);
+  }
+  // If neither provided, expiryDate remains null (indefinite access)
+
   // Get admin info for audit trail
   const adminUser = await prisma.user.findUnique({
     where: { id: adminUserId },
     select: { email: true },
   });
 
-  // Create the user as a trial user with the password they provided
+  // Create user with full access (not trial) - expiry is optional
   const newUser = await prisma.user.create({
     data: {
       email: request.email,
@@ -671,8 +688,9 @@ export async function approveAccessRequest(requestId, adminUserId) {
       jobTitle: request.jobTitle,
       passwordHash: request.passwordHash,
       role: 'USER',
-      isTrialUser: true,
-      deliverablesUsed: 0,
+      isTrialUser: false,
+      isPermanent: !expiryDate,
+      sessionExpiry: expiryDate,
       isActive: true,
     },
   });

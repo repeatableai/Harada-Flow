@@ -417,9 +417,10 @@ class ApiClient {
       return this.request(`/admin/access-requests${params}`);
     },
 
-    approveAccessRequest: async (requestId) => {
+    approveAccessRequest: async (requestId, options = {}) => {
       return this.request(`/admin/access-requests/${requestId}/approve`, {
         method: 'POST',
+        body: JSON.stringify(options),
       });
     },
 
@@ -534,12 +535,15 @@ class ApiClient {
 
   // Knowledge Files API
   knowledgeFiles = {
-    upload: async (file, scope, departmentIds = [], description = '', organizationId = null, _isRetry = false) => {
+    upload: async (file, scope, departmentIds = [], description = '', organizationId = null, userIds = [], _isRetry = false) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('scope', scope);
       if (departmentIds.length > 0) {
         formData.append('departmentIds', JSON.stringify(departmentIds));
+      }
+      if (userIds.length > 0) {
+        formData.append('userIds', JSON.stringify(userIds));
       }
       if (description) {
         formData.append('description', description);
@@ -565,7 +569,7 @@ class ApiClient {
       if (response.status === 401 && !_isRetry) {
         const refreshed = await this.refreshToken();
         if (refreshed) {
-          return this.knowledgeFiles.upload(file, scope, departmentIds, description, organizationId, true);
+          return this.knowledgeFiles.upload(file, scope, departmentIds, description, organizationId, userIds, true);
         }
         window.dispatchEvent(new CustomEvent('auth-required'));
         throw new Error('Not authenticated');
@@ -630,6 +634,13 @@ class ApiClient {
 
     delete: async (id) => {
       return this.request(`/knowledge-files/${id}`, { method: 'DELETE' });
+    },
+
+    linkToCompany: async (fileId, companyId) => {
+      return this.request(`/knowledge-files/${fileId}/link-company`, {
+        method: 'PATCH',
+        body: JSON.stringify({ companyId }),
+      });
     },
   };
 

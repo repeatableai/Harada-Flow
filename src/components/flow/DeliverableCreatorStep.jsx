@@ -175,6 +175,9 @@ Return the data in JSON format with this structure:
           column_name: selectedDeliverable.column || null,
           overview: result.overview,
           prompts: result.prompts,
+          // Include custom deliverable info if applicable
+          is_custom: selectedDeliverable.isCustom || false,
+          custom_input: selectedDeliverable.isCustom ? selectedDeliverable.name : null,
         });
         toast({
           title: "Prompts saved",

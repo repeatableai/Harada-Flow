@@ -48,10 +48,10 @@ export async function authenticate(req, res, next) {
       throw new AppError('User not found', 401);
     }
 
-    // Check session expiry for non-permanent users
+    // Check access expiry for non-permanent users
     if (!user.isPermanent && user.sessionExpiry) {
       if (new Date() > new Date(user.sessionExpiry)) {
-        throw new AppError('Session expired', 401);
+        throw new AppError('Your access has expired. Please contact your administrator.', 401);
       }
     }
 

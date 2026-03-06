@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
@@ -12,10 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LayoutGrid, RefreshCw, LogOut, Shield, User, Building2, FolderTree, Settings, ChevronDown } from "lucide-react";
+import { LayoutGrid, RefreshCw, LogOut, Shield, User, Building2, FolderTree, Settings, ChevronDown, FolderOpen } from "lucide-react";
 import { usePermissions } from "@/components/common/usePermissions";
 import SessionWarning from "@/components/auth/SessionWarning";
 import { useAuth } from "@/components/auth/AuthProvider";
+import KnowledgeFilesPanel from "@/components/common/KnowledgeFilesPanel";
 
 function getInitials(name, email) {
   if (name && name.trim()) {
@@ -34,6 +34,7 @@ function getInitials(name, email) {
 export default function Layout({ children }) {
   const { hasPermission, isLoading } = usePermissions();
   const { user: currentUser, logout } = useAuth();
+  const [showFilesPanel, setShowFilesPanel] = useState(false);
 
   // Check if user has any admin role (includes all admin levels in hierarchy)
   const isAdmin = currentUser && (
@@ -124,6 +125,16 @@ export default function Layout({ children }) {
                   <roleBadge.icon className="w-3 h-3" />
                   {roleBadge.label}
                 </Badge>
+              )}
+              {currentUser && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowFilesPanel(true)}
+                  className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
+                >
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Files</span>
+                </Button>
               )}
               {isAdmin && (
                 <Link to="/admin">
@@ -220,7 +231,7 @@ export default function Layout({ children }) {
             </p>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-xs text-blue-300">
-                <img 
+                <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/d6c37146a_RepeatableAi1.png"
                   alt="Repeatable AI"
                   className="h-4 w-auto opacity-70"
@@ -231,6 +242,12 @@ export default function Layout({ children }) {
           </div>
         </div>
       </footer>
+
+      {/* Knowledge Files Panel */}
+      <KnowledgeFilesPanel
+        open={showFilesPanel}
+        onOpenChange={setShowFilesPanel}
+      />
     </div>
   );
 }

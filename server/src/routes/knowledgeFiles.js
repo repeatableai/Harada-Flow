@@ -67,8 +67,9 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { scope = 'self', description, organizationId } = req.body;
+    const { scope = 'self', description, organizationId, companyId } = req.body;
     let departmentIds = [];
+    let userIds = [];
 
     // Parse departmentIds if provided
     if (req.body.departmentIds) {
@@ -80,13 +81,25 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       }
     }
 
+    // Parse userIds if provided
+    if (req.body.userIds) {
+      try {
+        userIds = JSON.parse(req.body.userIds);
+      } catch {
+        // If not JSON, try splitting by comma
+        userIds = req.body.userIds.split(',').filter(Boolean);
+      }
+    }
+
     const file = await knowledgeFileService.uploadFile(
       req.file,
       req.user,
       scope,
       departmentIds,
       description || null,
-      organizationId || null
+      organizationId || null,
+      companyId || null,
+      userIds
     );
 
     res.status(201).json(file);
@@ -152,6 +165,23 @@ router.get('/:id/download', async (req, res, next) => {
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
     res.sendFile(filePath);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/knowledge-files/:id/link-company
+ * Link a file to a company (role session)
+ */
+router.patch('/:id/link-company', async (req, res, next) => {
+  try {
+    const { companyId } = req.body;
+    if (!companyId) {
+      return res.status(400).json({ error: 'companyId is required' });
+    }
+    const file = await knowledgeFileService.linkToCompany(req.params.id, companyId, req.user);
+    res.json(file);
   } catch (error) {
     next(error);
   }

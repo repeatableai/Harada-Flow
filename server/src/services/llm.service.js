@@ -5,6 +5,7 @@ import { createTimeStudy } from './timeStudy.service.js';
 
 const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
+  timeout: 600000, // 10 minutes timeout for complex prompts
 });
 
 export async function invokeLLM({

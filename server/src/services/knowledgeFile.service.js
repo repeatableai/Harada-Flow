@@ -45,6 +45,8 @@ function canUploadToScope(user, scope) {
   switch (scope) {
     case 'self':
       return true; // All users can upload to self
+    case 'users':
+      return roleLevel >= ROLE_LEVELS.DEPARTMENT_ADMIN; // Admins can share with specific users
     case 'departments':
     case 'company':
       return roleLevel >= ROLE_LEVELS.DEPARTMENT_ADMIN;
@@ -74,6 +76,13 @@ function canAccessFile(file, user) {
   // Check based on file scope
   switch (file.scope) {
     case 'self':
+      return file.uploaderId === user.id;
+
+    case 'users':
+      // User must be in the shared users list or be the uploader
+      if (file.sharedUserIds && file.sharedUserIds.includes(user.id)) {
+        return true;
+      }
       return file.uploaderId === user.id;
 
     case 'departments':
@@ -116,7 +125,7 @@ function canDeleteFile(file, user) {
 /**
  * Upload a file
  */
-export async function uploadFile(file, user, scope, departmentIds = [], description = null, organizationId = null) {
+export async function uploadFile(file, user, scope, departmentIds = [], description = null, organizationId = null, companyId = null, userIds = []) {
   // Validate file type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     throw new AppError('File type not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLSX, PNG, JPG, GIF', 400);
@@ -135,6 +144,21 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
   // For departments scope, validate departmentIds
   if (scope === 'departments' && (!departmentIds || departmentIds.length === 0)) {
     throw new AppError('You must select at least one department for department-scoped files', 400);
+  }
+
+  // For users scope, validate userIds
+  if (scope === 'users' && (!userIds || userIds.length === 0)) {
+    throw new AppError('You must select at least one user for user-scoped files', 400);
+  }
+
+  // Validate companyId if provided - user must own the company
+  if (companyId) {
+    const company = await prisma.company.findFirst({
+      where: { id: companyId, userId: user.id },
+    });
+    if (!company) {
+      throw new AppError('Company not found or access denied', 404);
+    }
   }
 
   // Determine which organization to use:
@@ -160,7 +184,9 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
       uploaderId: user.id,
       scope,
       departmentIds: scope === 'departments' ? departmentIds : [],
+      sharedUserIds: scope === 'users' ? userIds : [],
       organizationId: targetOrgId,
+      companyId,
       description,
     },
     include: {
@@ -174,6 +200,42 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
   });
 
   return formatFileResponse(knowledgeFile);
+}
+
+/**
+ * Link a file to a company (role session)
+ */
+export async function linkToCompany(fileId, companyId, user) {
+  const file = await prisma.knowledgeFile.findUnique({
+    where: { id: fileId },
+  });
+
+  if (!file || file.uploaderId !== user.id) {
+    throw new AppError('File not found or access denied', 404);
+  }
+
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, userId: user.id },
+  });
+
+  if (!company) {
+    throw new AppError('Company not found or access denied', 404);
+  }
+
+  const updated = await prisma.knowledgeFile.update({
+    where: { id: fileId },
+    data: { companyId },
+    include: {
+      uploader: {
+        select: { id: true, name: true, email: true },
+      },
+      organization: {
+        select: { id: true, name: true },
+      },
+    },
+  });
+
+  return formatFileResponse(updated);
 }
 
 /**
@@ -201,7 +263,7 @@ export async function listFiles(user, query = {}) {
       ],
     };
   } else if (roleLevel >= ROLE_LEVELS.DEPARTMENT_ADMIN) {
-    // Department admin sees files in their org that are company-wide, in their dept, or their own
+    // Department admin sees files in their org that are company-wide, in their dept, shared with them, or their own
     whereClause = {
       OR: [
         { uploaderId: user.id },
@@ -217,6 +279,12 @@ export async function listFiles(user, query = {}) {
             { organizationId: user.organizationId },
             { scope: 'departments' },
             { departmentIds: { has: user.departmentId } },
+          ],
+        },
+        {
+          AND: [
+            { scope: 'users' },
+            { sharedUserIds: { has: user.id } },
           ],
         },
       ],
@@ -238,6 +306,12 @@ export async function listFiles(user, query = {}) {
             { organizationId: user.organizationId },
             { scope: 'departments' },
             { departmentIds: { has: user.departmentId } },
+          ],
+        },
+        {
+          AND: [
+            { scope: 'users' },
+            { sharedUserIds: { has: user.id } },
           ],
         },
       ],
@@ -396,11 +470,13 @@ function formatFileResponse(file) {
     size: file.size,
     scope: file.scope,
     departmentIds: file.departmentIds,
+    sharedUserIds: file.sharedUserIds || [],
     description: file.description,
     uploaderId: file.uploaderId,
     uploader: file.uploader || null,
     organizationId: file.organizationId,
     organization: file.organization || null,
+    companyId: file.companyId || null,
     createdAt: file.createdAt,
     updatedAt: file.updatedAt,
   };

@@ -217,9 +217,15 @@ router.get('/access-requests', requireSuperAdmin, async (req, res, next) => {
 });
 
 // POST /api/admin/access-requests/:id/approve - Approve access request
+// Body can include optional: { accessExpiry: ISO date string, accessDays: number }
 router.post('/access-requests/:id/approve', requireSuperAdmin, async (req, res, next) => {
   try {
-    const result = await authService.approveAccessRequest(req.params.id, req.user.id);
+    const { accessExpiry, accessDays } = req.body;
+    const result = await authService.approveAccessRequest(
+      req.params.id,
+      req.user.id,
+      { accessExpiry, accessDays }
+    );
     res.json(result);
   } catch (error) {
     next(error);

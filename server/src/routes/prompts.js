@@ -25,6 +25,11 @@ const createPromptSchema = z.object({
     description: z.string(),
     prompt: z.string(),
   })),
+  // Custom deliverable fields
+  is_custom: z.boolean().optional(),
+  isCustom: z.boolean().optional(),
+  custom_input: z.string().optional().nullable(),
+  customInput: z.string().optional().nullable(),
 }).refine(data => data.deliverable_name || data.deliverableName, {
   message: 'deliverable_name or deliverableName is required',
 }).refine(data => data.deliverable_type || data.deliverableType, {

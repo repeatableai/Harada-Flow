@@ -148,7 +148,13 @@ export default function HomePage() {
   const renderStep = () => {
     switch (step) {
       case 'welcome':
-        return <WelcomeStep onCompanyCreated={handleCompanyCreated} />;
+        return (
+          <WelcomeStep
+            onCompanyCreated={handleCompanyCreated}
+            onLoadSession={handleLoadSession}
+            onDeleteSession={handleDeleteSession}
+          />
+        );
       case 'builder':
         return <MatrixBuilderStep company={company} onMatricesFinalized={handleMatricesFinalized} onStartOver={handleStartOver} />;
       case 'creator':

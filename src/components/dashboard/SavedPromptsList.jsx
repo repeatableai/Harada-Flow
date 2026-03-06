@@ -13,7 +13,9 @@ import {
   ChevronUp,
   Calendar,
   Briefcase,
-  Inbox
+  Inbox,
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
@@ -190,7 +192,13 @@ export default function SavedPromptsList({ onPromptDeleted }) {
                           >
                             {savedPrompt.deliverable_type === 'productivity' ? 'Productivity' : 'Performance'}
                           </Badge>
-                          {savedPrompt.column_name && (
+                          {savedPrompt.is_custom && (
+                            <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Custom
+                            </Badge>
+                          )}
+                          {savedPrompt.column_name && !savedPrompt.is_custom && (
                             <Badge variant="outline" className="text-xs text-gray-400 border-gray-600">
                               {savedPrompt.column_name}
                             </Badge>
@@ -250,6 +258,17 @@ export default function SavedPromptsList({ onPromptDeleted }) {
 
                   <CollapsibleContent>
                     <CardContent className="pt-0">
+                      {/* Custom Input - shown for custom deliverables */}
+                      {savedPrompt.is_custom && savedPrompt.custom_input && (
+                        <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="w-4 h-4 text-amber-400" />
+                            <span className="text-sm font-medium text-amber-300">Your Original Input</span>
+                          </div>
+                          <p className="text-sm text-amber-100/90 whitespace-pre-wrap">{savedPrompt.custom_input}</p>
+                        </div>
+                      )}
+
                       {/* Overview */}
                       <div className="mb-4 p-3 bg-white/5 rounded-lg">
                         <p className="text-sm text-gray-300">{savedPrompt.overview}</p>

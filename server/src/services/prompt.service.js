@@ -62,6 +62,10 @@ export async function create(userId, companyId, data) {
     columnName,
     overview,
     prompts,
+    is_custom,
+    isCustom,
+    custom_input,
+    customInput,
   } = data;
 
   const prompt = await prisma.savedPrompt.create({
@@ -72,6 +76,8 @@ export async function create(userId, companyId, data) {
       overview,
       prompts,
       companyId,
+      isCustom: is_custom || isCustom || false,
+      customInput: custom_input || customInput || null,
     },
     include: {
       company: {
@@ -124,6 +130,8 @@ function formatPromptResponse(prompt) {
     prompts: prompt.prompts,
     company_id: prompt.companyId,
     created_at: prompt.createdAt.toISOString(),
+    is_custom: prompt.isCustom || false,
+    custom_input: prompt.customInput || null,
   };
 
   // Include company info if available
