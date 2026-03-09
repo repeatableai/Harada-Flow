@@ -774,6 +774,7 @@ export async function checkTrialUserDeliverableLimit(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      role: true,
       isTrialUser: true,
       deliverablesUsed: true,
       deliverablesLimit: true,
@@ -783,6 +784,12 @@ export async function checkTrialUserDeliverableLimit(userId) {
 
   if (!user) {
     throw new AppError('User not found', 404);
+  }
+
+  // Admins always have full access - no limits apply
+  const adminRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ADMIN', 'DEPARTMENT_ADMIN'];
+  if (adminRoles.includes(user.role)) {
+    return { canSave: true, isTrialUser: false, isLockedOut: false, isViewOnly: false };
   }
 
   // Check if time-based access has expired (completely locked out)
