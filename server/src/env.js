@@ -10,7 +10,3 @@ const envPath = resolve(__dirname, '..', '.env');
 // Load .env but DON'T override existing environment variables
 // This allows Render/production env vars to take precedence
 dotenv.config({ path: envPath });
-
-console.log('Environment loaded');
-console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'set' : 'NOT set');
-console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'set' : 'NOT set');

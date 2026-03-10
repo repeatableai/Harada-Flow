@@ -1,8 +1,5 @@
 // Note: dotenv is loaded in index.js before this module
 
-// Debug: log what env vars we see
-console.log('Config loading - ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'present' : 'missing');
-
 export default {
   port: process.env.PORT || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',

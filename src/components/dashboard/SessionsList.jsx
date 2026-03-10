@@ -124,15 +124,15 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
               transition={{ delay: index * 0.05 }}
             >
               <Card
-                className={`bg-white/5 backdrop-blur-lg border-white/10 hover:bg-white/10 transition-all duration-200 ${
+                className={`bg-white/5 backdrop-blur-lg border-white/10 hover:bg-white/10 transition-all duration-200 overflow-hidden ${
                   session.id === currentCompanyId ? 'ring-2 ring-blue-500' : ''
                 }`}
               >
                 <CardContent className="p-4">
                   <div className="space-y-3">
                     {/* Job Title */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <Briefcase className="w-5 h-5 text-blue-400 flex-shrink-0" />
                         <h3 className="text-lg font-semibold text-white truncate">
                           {session.job_title}
@@ -147,16 +147,16 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
 
                     {/* Details */}
                     <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Building2 className="w-4 h-4" />
-                        <span>{session.industry}</span>
+                      <div className="flex items-center gap-2 text-gray-400 min-w-0">
+                        <Building2 className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{session.industry}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Users className="w-4 h-4" />
+                        <Users className="w-4 h-4 flex-shrink-0" />
                         <span>{session.company_size}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400">
-                        <Calendar className="w-4 h-4" />
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
                         <span>{formatDate(session.created_date)}</span>
                       </div>
                     </div>
