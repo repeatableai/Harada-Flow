@@ -59,10 +59,12 @@ const accessRequestSchema = z.object({
 });
 
 // Cookie options for refresh token
+// sameSite: 'none' required for cross-origin requests (frontend/backend on different domains)
+// secure: true required when sameSite is 'none'
 const cookieOptions = {
   httpOnly: true,
-  secure: config.nodeEnv === 'production',
-  sameSite: 'lax',
+  secure: true, // Required for sameSite: 'none'
+  sameSite: 'none', // Allow cross-origin cookie sending
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
 };
