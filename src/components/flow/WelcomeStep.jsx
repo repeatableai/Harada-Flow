@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, ChevronDown, ChevronUp, Plus, Bookmark, FileUp, Edit3, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
 import FileUploadArea from "@/components/common/FileUploadArea";
@@ -34,7 +34,6 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [showFileUpload, setShowFileUpload] = useState(false);
 
   useEffect(() => {
     // Pre-fill form from user profile and organization data
@@ -362,56 +361,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                     </div>
                   </div>
 
-                  {/* Knowledge Files Upload Section */}
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowFileUpload(!showFileUpload)}
-                      className="flex items-center gap-2 text-blue-300 hover:text-white transition-colors group"
-                    >
-                      <FolderOpen className="w-4 h-4" />
-                      <span>Add reference files (optional)</span>
-                      {uploadedFiles.length > 0 && (
-                        <span className="text-xs bg-blue-500/30 px-2 py-0.5 rounded-full">
-                          {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                      {showFileUpload ? (
-                        <ChevronUp className="w-4 h-4 ml-auto" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 ml-auto" />
-                      )}
-                    </button>
-
-                    <AnimatePresence>
-                      {showFileUpload && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-4 p-4 bg-white/5 rounded-lg border border-white/10">
-                            <p className="text-blue-200 text-sm mb-3">
-                              Upload documents about your role, company processes, or industry standards
-                              to help generate more relevant deliverables matrices.
-                            </p>
-                            <FileUploadArea
-                              files={uploadedFiles}
-                              onFilesSelected={handleFilesSelected}
-                              onRemoveFile={handleRemoveFile}
-                              isUploading={isUploadingFiles}
-                              maxFiles={5}
-                              disabled={isSubmitting}
-                            />
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <div className="pt-4">
+                  <div className="pt-6">
                     <Button
                       type="submit"
                       disabled={!isFormValid || isSubmitting || isLoadingUser}
