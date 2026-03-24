@@ -430,6 +430,21 @@ class ApiClient {
         body: JSON.stringify({ reason }),
       });
     },
+
+    // Activity Log methods
+    getActivityLogs: async (params = {}) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.set(key, value.toString());
+        }
+      });
+      return this.request(`/admin/activity?${searchParams.toString()}`);
+    },
+
+    getActivityStats: async () => {
+      return this.request('/admin/activity/stats');
+    },
   };
 
   // Organization methods (Super Admin)
@@ -661,6 +676,14 @@ class ApiClient {
           body: JSON.stringify(params),
         });
       },
+    },
+
+    // Extract role information from uploaded files
+    extractRoleFromFiles: async (fileIds) => {
+      return this.request('/integrations/extract-role', {
+        method: 'POST',
+        body: JSON.stringify({ fileIds }),
+      });
     },
   };
 }

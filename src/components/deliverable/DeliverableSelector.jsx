@@ -154,7 +154,7 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
                       onClick={() => onSelect(deliverable)}
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                     >
-                      Create Prompts
+                      Create Requests
                     </Button>
                   </div>
                 </div>

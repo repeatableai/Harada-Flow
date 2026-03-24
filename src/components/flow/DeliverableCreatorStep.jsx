@@ -180,8 +180,8 @@ Return the data in JSON format with this structure:
           custom_input: selectedDeliverable.isCustom ? selectedDeliverable.name : null,
         });
         toast({
-          title: "Prompts saved",
-          description: "Your prompts have been saved to your library",
+          title: "Requests saved",
+          description: "Your requests have been saved to your library",
         });
       } catch (saveError) {
         console.error("Error auto-saving prompts:", saveError);
@@ -287,7 +287,7 @@ Return the data in JSON format with this structure:
                 )}
               </div>
               <p className="text-blue-200">
-                We'll generate detailed, sequential prompts that you can copy and paste into any LLM to create this deliverable.
+                We'll generate detailed, sequential requests that you can copy and paste into any LLM to create this deliverable.
               </p>
               <div className="flex gap-4 justify-center">
                 <Button variant="ghost" onClick={resetSelection} className="bg-white/10 border border-white/20 text-white hover:bg-white/20">
@@ -299,7 +299,7 @@ Return the data in JSON format with this structure:
                   className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
-                  {isTrialLimitReached ? 'Limit Reached' : 'Generate Prompts'}
+                  {isTrialLimitReached ? 'Limit Reached' : 'Generate Requests'}
                 </Button>
               </div>
             </CardContent>
@@ -338,10 +338,10 @@ Return the data in JSON format with this structure:
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
             <Target className="inline-block w-8 h-8 mr-3 text-blue-400" />
-            Deliverable Prompts
+            Deliverable Requests
           </h1>
           <p className="text-blue-200 max-w-2xl mx-auto">
-            Create new prompts, browse past sessions, or view your saved prompts library
+            Create new requests, browse past sessions, or view your saved requests library
           </p>
         </div>
 
@@ -368,7 +368,7 @@ Return the data in JSON format with this structure:
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300"
               >
                 <Bookmark className="w-4 h-4 mr-2" />
-                Prompts
+                Requests
               </TabsTrigger>
             </TabsList>
           </div>
@@ -404,9 +404,9 @@ Return the data in JSON format with this structure:
           <TabsContent value="prompts" className="mt-0">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-white mb-2">Saved Prompts</h2>
+                <h2 className="text-xl font-semibold text-white mb-2">Saved Requests</h2>
                 <p className="text-gray-400">
-                  All your generated deliverable prompts across all sessions
+                  All your generated deliverable requests across all sessions
                 </p>
               </div>
               <SavedPromptsList />

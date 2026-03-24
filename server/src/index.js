@@ -15,6 +15,7 @@ import timeStudiesRoutes from './routes/timeStudies.js';
 import organizationsRoutes from './routes/organizations.js';
 import departmentsRoutes from './routes/departments.js';
 import knowledgeFilesRoutes from './routes/knowledgeFiles.js';
+import activityRoutes from './routes/activity.js';
 import seedRoutes from './routes/seed.js';
 
 const app = express();
@@ -48,6 +49,9 @@ app.use('/api', departmentsRoutes); // Handles both /organizations/:orgId/depart
 
 // Knowledge file management routes
 app.use('/api/knowledge-files', knowledgeFilesRoutes);
+
+// Activity tracking routes (admin)
+app.use('/api/admin/activity', activityRoutes);
 
 // Seed routes (for initial data population)
 app.use('/api/seed', seedRoutes);

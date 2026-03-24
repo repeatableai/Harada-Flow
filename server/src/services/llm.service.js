@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import config from '../config.js';
 import { scrapeCompanyWebsite } from './scraper.service.js';
 import { createTimeStudy } from './timeStudy.service.js';
+import { extractTextFromFiles } from './fileExtractor.service.js';
+import { getFilesForSession } from './knowledgeFile.service.js';
+import prisma from '../db.js';
 
 const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
@@ -51,6 +54,26 @@ export async function invokeLLM({
         console.log(`Added ${websiteContext.length} chars of website context to prompt`);
       } else {
         console.log('No website content scraped, proceeding without context');
+      }
+    }
+
+    // Automatically include knowledge files linked to the session
+    if (companyId) {
+      try {
+        const sessionFiles = await getFilesForSession(companyId);
+        if (sessionFiles && sessionFiles.length > 0) {
+          console.log(`Found ${sessionFiles.length} knowledge files for session ${companyId}`);
+          const fileContent = await extractTextFromFiles(sessionFiles);
+
+          if (fileContent && fileContent.trim().length > 0) {
+            const knowledgeContext = `[KNOWLEDGE FILES CONTEXT]\n${fileContent}\n[END KNOWLEDGE FILES CONTEXT]`;
+            enrichedPrompt = `${knowledgeContext}\n\n${enrichedPrompt}`;
+            console.log(`Added ${fileContent.length} chars of knowledge file context to prompt`);
+          }
+        }
+      } catch (fileError) {
+        console.error('Error loading knowledge files:', fileError);
+        // Continue without file context
       }
     }
 
@@ -190,4 +213,74 @@ async function saveTimeStudyIfTracking({
     console.error('Failed to save time study:', error);
     return null;
   }
+}
+
+/**
+ * Extract role information from uploaded files using LLM
+ * @param {string[]} fileIds - Array of knowledge file IDs
+ * @param {string} userId - User ID for permission check
+ * @returns {Promise<{job_title: string, industry: string, company_size: string, company_url?: string}>}
+ */
+export async function extractRoleInfoFromFiles(fileIds, userId) {
+  // Fetch the files from database
+  const files = await prisma.knowledgeFile.findMany({
+    where: {
+      id: { in: fileIds },
+      uploaderId: userId, // Ensure user owns the files
+    },
+    select: {
+      id: true,
+      filename: true,
+      originalName: true,
+      mimeType: true,
+    },
+  });
+
+  if (files.length === 0) {
+    throw new Error('No accessible files found');
+  }
+
+  // Extract text content from all files
+  const fileContents = await extractTextFromFiles(files);
+
+  if (!fileContents || fileContents.trim().length === 0) {
+    throw new Error('Could not extract text from uploaded files');
+  }
+
+  // Use LLM to extract role information
+  const prompt = `You are analyzing documents about a person's job role. Extract the following information:
+
+1. Job Title - The specific job title or position (e.g., "Software Engineer", "Marketing Director", "Corporate Controller")
+2. Industry - The industry or sector (e.g., "Technology", "Healthcare", "Finance", "Manufacturing")
+3. Company Size - Estimate based on context. Use one of: "startup", "small", "medium", "large", "enterprise"
+4. Company URL - If a company website is mentioned, include it
+
+If any information is not clearly stated, make a reasonable inference based on the context.
+
+DOCUMENTS:
+${fileContents}
+
+Return the data as JSON with this exact structure:
+{
+  "job_title": "extracted job title",
+  "industry": "extracted industry",
+  "company_size": "startup|small|medium|large|enterprise",
+  "company_url": "url if found, or empty string"
+}`;
+
+  const result = await invokeLLM({
+    prompt,
+    response_json_schema: {
+      type: "object",
+      properties: {
+        job_title: { type: "string" },
+        industry: { type: "string" },
+        company_size: { type: "string" },
+        company_url: { type: "string" }
+      },
+      required: ["job_title", "industry", "company_size"]
+    },
+  });
+
+  return result;
 }

@@ -130,18 +130,18 @@ export default function GeneratedPrompts({ prompts, onStartOver }) {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-bold flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-400" />
-              How to Use These Prompts
+              How to Use These Requests
             </h3>
-            <img 
+            <img
               src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/199aedeea_FinalRepeatableLogowithoutbackground1.png"
               alt="Repeatable AI"
               className="h-6 w-auto opacity-60"
             />
           </div>
           <div className="space-y-2 text-blue-100">
-            <p>• Copy each prompt in sequential order and paste them into the LLM of your choice. Input or upload the context and knowledge files as requested by the generated prompts. If you do not have the requested submissions, don't worry, just tell AI to proceed without it or ask AI to generate "Synthetic Data" common to the requested deliverable.</p>
+            <p>• Copy each request in sequential order and paste them into the LLM of your choice. Input or upload the context and knowledge files as requested by the generated requests. If you do not have the requested submissions, don't worry, just tell AI to proceed without it or ask AI to generate "Synthetic Data" common to the requested deliverable.</p>
             <p>• Use the output from each step to inform the next</p>
-            <p>• Customize the prompts based on your specific needs</p>
+            <p>• Customize the requests based on your specific needs</p>
           </div>
         </CardContent>
       </Card>

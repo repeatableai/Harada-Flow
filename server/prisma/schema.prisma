@@ -277,3 +277,22 @@ model AccessRequest {
   @@index([createdAt(sort: Desc)])
   @@map("access_requests")
 }
+
+model ActivityLog {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  organizationId String?  @map("organization_id")  // For scoping to company
+  departmentId   String?  @map("department_id")    // For scoping to department
+  activityType   String   @map("activity_type")    // 'file_upload', 'file_access', 'session_load'
+  resourceType   String   @map("resource_type")    // 'knowledge_file', 'session'
+  resourceId     String?  @map("resource_id")
+  metadata       Json?                             // Includes: fileName, fileType, userName, sessionName
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([activityType])
+  @@index([createdAt(sort: Desc)])
+  @@map("activity_logs")
+}

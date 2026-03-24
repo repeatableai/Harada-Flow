@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Company } from "@/api/entities";
 import { User } from "@/api/entities";
 import { sanitizeAndConformMatrix } from "../components/common/MatrixSanitizer";
+import { useAuth } from "../components/auth/AuthProvider";
 
 import WelcomeStep from "../components/flow/WelcomeStep";
 import MatrixBuilderStep from "../components/flow/MatrixBuilderStep";
@@ -12,12 +13,23 @@ import LoadingOverlay from "../components/common/LoadingOverlay";
 
 export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { justLoggedIn, clearJustLoggedIn, isAdmin } = useAuth();
   const [step, setStep] = useState('loading'); // loading, welcome, builder, creator
   const [company, setCompany] = useState(null);
   const [user, setUser] = useState(null);
+  const [userCompanies, setUserCompanies] = useState([]);
 
   // Ref to track if we're starting a new role (avoids race condition with loadLatest)
   const isStartingNewRef = useRef(false);
+
+  // Redirect admins to admin dashboard on fresh login
+  useEffect(() => {
+    if (justLoggedIn && isAdmin()) {
+      clearJustLoggedIn();
+      navigate('/admin');
+    }
+  }, [justLoggedIn, isAdmin, clearJustLoggedIn, navigate]);
 
   // Check for start=new parameter and trigger welcome step
   useEffect(() => {
@@ -45,10 +57,11 @@ export default function HomePage() {
           return;
         }
 
-        const userCompanies = await Company.filter({ created_by: currentUser.email }, "-created_date", 1);
+        const companies = await Company.filter({ created_by: currentUser.email }, "-created_date", 1);
+        setUserCompanies(companies);
 
-        if (userCompanies.length > 0) {
-          const lastCompany = userCompanies[0];
+        if (companies.length > 0) {
+          const lastCompany = companies[0];
 
           const conformedCompany = {
             ...lastCompany,
@@ -153,6 +166,7 @@ export default function HomePage() {
             onCompanyCreated={handleCompanyCreated}
             onLoadSession={handleLoadSession}
             onDeleteSession={handleDeleteSession}
+            hasExistingSessions={userCompanies.length > 0}
           />
         );
       case 'builder':

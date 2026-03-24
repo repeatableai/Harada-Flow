@@ -24,6 +24,7 @@ export default function AuthProvider({ children }) {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking, true/false = known
   const [currentUser, setCurrentUser] = useState(null);
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   useEffect(() => {
     // Try to restore session on mount
@@ -68,6 +69,11 @@ export default function AuthProvider({ children }) {
     setCurrentUser(user);
     setIsAuthenticated(true);
     setShowAuthDialog(false);
+    setJustLoggedIn(true);
+  };
+
+  const clearJustLoggedIn = () => {
+    setJustLoggedIn(false);
   };
 
   const handleLogout = async () => {
@@ -144,6 +150,8 @@ export default function AuthProvider({ children }) {
   const contextValue = {
     user: currentUser,
     isAuthenticated,
+    justLoggedIn,
+    clearJustLoggedIn,
     logout: handleLogout,
     refreshUser: async () => {
       try {

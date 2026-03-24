@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.js';
-import { invokeLLM } from '../services/llm.service.js';
+import { invokeLLM, extractRoleInfoFromFiles } from '../services/llm.service.js';
 import { checkTrialUserDeliverableLimit } from '../services/auth.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -55,6 +55,23 @@ router.post('/llm', async (req, res, next) => {
       companySize: data.companySize,
       deliverableName: data.deliverableName,
     });
+
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/integrations/extract-role - Extract role info from uploaded files
+router.post('/extract-role', async (req, res, next) => {
+  try {
+    const { fileIds } = req.body;
+
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      throw new AppError('fileIds array is required', 400);
+    }
+
+    const result = await extractRoleInfoFromFiles(fileIds, req.user.id);
 
     res.json(result);
   } catch (error) {

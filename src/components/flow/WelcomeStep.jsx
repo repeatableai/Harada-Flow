@@ -7,16 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, ChevronDown, ChevronUp, Plus, Bookmark } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, ChevronDown, ChevronUp, Plus, Bookmark, FileUp, Edit3, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useToast } from "@/components/ui/use-toast";
 import FileUploadArea from "@/components/common/FileUploadArea";
 import SessionsList from "@/components/dashboard/SessionsList";
 import SavedPromptsList from "@/components/dashboard/SavedPromptsList";
 
-export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteSession }) {
+export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteSession, hasExistingSessions = false }) {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('new');
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState(hasExistingSessions ? 'sessions' : 'new');
+  const [inputMode, setInputMode] = useState(null); // 'form' | 'upload' | null
   const [formData, setFormData] = useState({
     job_title: "",
     industry: "",
@@ -26,6 +29,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [isPreFilled, setIsPreFilled] = useState(false);
+  const [isExtractingRole, setIsExtractingRole] = useState(false);
 
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -141,6 +145,216 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   };
 
   const isFormValid = formData.job_title && formData.industry && formData.company_size;
+  const isUploadValid = uploadedFiles.length > 0;
+
+  // Handle upload-only submission with role extraction
+  const handleUploadOnlySubmit = async () => {
+    if (uploadedFiles.length === 0) return;
+
+    setIsExtractingRole(true);
+    setIsSubmitting(true);
+
+    try {
+      // Call LLM to extract role information from uploaded files
+      const fileIds = uploadedFiles.map(f => f.id);
+      const extractionResult = await apiClient.integrations.extractRoleFromFiles(fileIds);
+
+      if (!extractionResult || !extractionResult.job_title) {
+        throw new Error('Failed to extract role information from files');
+      }
+
+      // Create the company session with extracted data
+      const newCompany = await Company.create({
+        job_title: extractionResult.job_title,
+        industry: extractionResult.industry || 'General',
+        company_size: extractionResult.company_size || 'medium',
+        company_url: extractionResult.company_url || '',
+        source_type: 'file_upload'
+      });
+
+      // Link uploaded files to the new company
+      await Promise.all(
+        uploadedFiles.map(file =>
+          apiClient.knowledgeFiles.linkToCompany(file.id, newCompany.id).catch(err => {
+            console.error('Failed to link file to company:', file.originalName, err);
+          })
+        )
+      );
+
+      // Update user profile with job title
+      UserApi.updateMe({ job_title: extractionResult.job_title }).catch(err => {
+        console.error("Failed to update user profile:", err);
+      });
+
+      toast({
+        title: "Role extracted successfully",
+        description: `Detected: ${extractionResult.job_title} in ${extractionResult.industry}`,
+      });
+
+      onCompanyCreated(newCompany);
+    } catch (error) {
+      console.error("Error extracting role from files:", error);
+      toast({
+        title: "Extraction failed",
+        description: "Could not extract role information. Please try the form instead.",
+        variant: "destructive",
+      });
+    }
+
+    setIsExtractingRole(false);
+    setIsSubmitting(false);
+  };
+
+  const renderModeSelector = () => (
+    <div className="w-full max-w-2xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center mb-8"
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-6">
+          <Sparkles className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          Build Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Role Deliverables Matrices</span>
+        </h1>
+        <p className="text-xl text-blue-200 max-w-2xl mx-auto leading-relaxed">
+          Choose how you'd like to define your role
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        <Card
+          className="bg-white/10 backdrop-blur-lg border-white/20 cursor-pointer hover:bg-white/15 hover:border-blue-400/50 transition-all duration-300 group"
+          onClick={() => setInputMode('form')}
+        >
+          <CardContent className="p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500/20 rounded-2xl mb-4 group-hover:bg-blue-500/30 transition-colors">
+              <Edit3 className="w-8 h-8 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Build from Role Details</h3>
+            <p className="text-blue-200 text-sm">
+              Fill out a form with your job title, industry, and company size
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="bg-white/10 backdrop-blur-lg border-white/20 cursor-pointer hover:bg-white/15 hover:border-purple-400/50 transition-all duration-300 group"
+          onClick={() => setInputMode('upload')}
+        >
+          <CardContent className="p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500/20 rounded-2xl mb-4 group-hover:bg-purple-500/30 transition-colors">
+              <FileUp className="w-8 h-8 text-purple-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Upload Role Documents</h3>
+            <p className="text-purple-200 text-sm">
+              Upload job descriptions, org charts, or role documents - AI extracts the details
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Subtle Repeatable AI branding */}
+      <div className="flex items-center justify-center space-x-2 mt-8 opacity-60">
+        <span className="text-sm text-blue-300">Powered by</span>
+        <img
+          src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/199aedeea_FinalRepeatableLogowithoutbackground1.png"
+          alt="Repeatable AI"
+          className="h-6 w-auto"
+        />
+      </div>
+    </div>
+  );
+
+  const renderUploadOnlyForm = () => (
+    <div className="w-full max-w-2xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-center mb-8"
+      >
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl mb-6">
+          <FileUp className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+          Upload Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">Role Documents</span>
+        </h1>
+        <p className="text-xl text-blue-200 max-w-2xl mx-auto leading-relaxed">
+          Upload job descriptions, org charts, or any documents that describe your role. Our AI will extract the details automatically.
+        </p>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+      >
+        <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+          <CardHeader className="pb-6">
+            <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
+              <FolderOpen className="w-6 h-6 text-purple-400" />
+              Upload Documents
+            </CardTitle>
+            <p className="text-blue-200">
+              Upload PDF, Word, or text files that describe your role, responsibilities, or company.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FileUploadArea
+              files={uploadedFiles}
+              onFilesSelected={handleFilesSelected}
+              onRemoveFile={handleRemoveFile}
+              isUploading={isUploadingFiles}
+              maxFiles={5}
+              disabled={isSubmitting}
+            />
+
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setInputMode(null);
+                  setUploadedFiles([]);
+                }}
+                className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                disabled={isSubmitting}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                onClick={handleUploadOnlySubmit}
+                disabled={!isUploadValid || isSubmitting}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold disabled:opacity-50"
+              >
+                {isExtractingRole ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Analyzing Documents...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    Extract & Generate
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
 
   const renderNewRoleForm = () => (
     <div className="w-full max-w-2xl mx-auto">
@@ -312,11 +526,23 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                   </AnimatePresence>
                 </div>
 
-                <div className="pt-6">
+                <div className="flex gap-4 pt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setInputMode(null);
+                      setShowFileUpload(false);
+                    }}
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    disabled={isSubmitting}
+                  >
+                    Back
+                  </Button>
                   <Button
                     type="submit"
                     disabled={!isFormValid || isSubmitting || isLoadingUser}
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center gap-2">
@@ -365,13 +591,15 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300"
               >
                 <Bookmark className="w-4 h-4 mr-2" />
-                Prompts
+                Requests
               </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="new" className="mt-0">
-            {renderNewRoleForm()}
+            {inputMode === null && renderModeSelector()}
+            {inputMode === 'form' && renderNewRoleForm()}
+            {inputMode === 'upload' && renderUploadOnlyForm()}
           </TabsContent>
 
           <TabsContent value="sessions" className="mt-0">
@@ -401,9 +629,9 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           <TabsContent value="prompts" className="mt-0">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="mb-6 text-center">
-                <h2 className="text-2xl font-semibold text-white mb-2">Saved Prompts</h2>
+                <h2 className="text-2xl font-semibold text-white mb-2">Saved Requests</h2>
                 <p className="text-gray-400">
-                  All your generated deliverable prompts across all sessions
+                  All your generated deliverable requests across all sessions
                 </p>
               </div>
               <SavedPromptsList />

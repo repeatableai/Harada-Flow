@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import prisma from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { logActivity } from './activityLog.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -196,6 +197,23 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
       organization: {
         select: { id: true, name: true },
       },
+    },
+  });
+
+  // Log file upload activity
+  logActivity({
+    userId: user.id,
+    organizationId: targetOrgId,
+    departmentId: user.departmentId || null,
+    activityType: 'file_upload',
+    resourceType: 'knowledge_file',
+    resourceId: knowledgeFile.id,
+    metadata: {
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      scope,
+      userName: user.name || user.email,
     },
   });
 
@@ -421,6 +439,21 @@ export async function downloadFile(fileId, user) {
     throw new AppError('File not found on server', 404);
   }
 
+  // Log file access activity
+  logActivity({
+    userId: user.id,
+    organizationId: file.organizationId,
+    departmentId: user.departmentId || null,
+    activityType: 'file_access',
+    resourceType: 'knowledge_file',
+    resourceId: file.id,
+    metadata: {
+      fileName: file.originalName,
+      fileType: file.mimeType,
+      userName: user.name || user.email,
+    },
+  });
+
   return {
     filePath,
     originalName: file.originalName,
@@ -456,6 +489,27 @@ export async function deleteFile(fileId, user) {
   });
 
   return { success: true };
+}
+
+/**
+ * Get all files linked to a session (company) for LLM context
+ * @param {string} companyId - The session/company ID
+ * @returns {Promise<Array>} - Array of file records with text-extractable info
+ */
+export async function getFilesForSession(companyId) {
+  const files = await prisma.knowledgeFile.findMany({
+    where: { companyId },
+    select: {
+      id: true,
+      filename: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return files;
 }
 
 /**

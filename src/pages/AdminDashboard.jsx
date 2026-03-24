@@ -33,6 +33,7 @@ import {
   UserCog,
   FolderOpen,
   UserPlus,
+  Activity,
 } from 'lucide-react';
 import {
   Select,
@@ -81,6 +82,11 @@ export default function AdminDashboard() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
 
+  // Activity log state
+  const [activityLogs, setActivityLogs] = useState({ data: [], pagination: {} });
+  const [activityStats, setActivityStats] = useState(null);
+  const [activityPage, setActivityPage] = useState(1);
+
   // Check admin access - now supports DEPARTMENT_ADMIN and above
   useEffect(() => {
     if (user && !isAdmin()) {
@@ -97,6 +103,8 @@ export default function AdminDashboard() {
     // loadTimeStudies(1);
     loadSavedPromptsStats();
     loadSavedPrompts(1);
+    loadActivityStats();
+    loadActivityLogs(1);
     if (isSuperAdmin()) {
       loadAllUsers();
     }
@@ -169,6 +177,29 @@ export default function AdminDashboard() {
       setSavedPromptsStats(data);
     } catch (error) {
       console.error('Failed to load saved prompts stats:', error);
+    }
+  };
+
+  const loadActivityStats = async () => {
+    try {
+      const data = await apiClient.admin.getActivityStats();
+      setActivityStats(data);
+    } catch (error) {
+      console.error('Failed to load activity stats:', error);
+    }
+  };
+
+  const loadActivityLogs = async (page) => {
+    try {
+      const data = await apiClient.admin.getActivityLogs({
+        page,
+        limit: 10,
+        resourceType: 'knowledge_file',
+      });
+      setActivityLogs(data);
+      setActivityPage(page);
+    } catch (error) {
+      console.error('Failed to load activity logs:', error);
     }
   };
 
@@ -300,11 +331,15 @@ export default function AdminDashboard() {
             {/* Time Savings tab hidden - keeping code for future use */}
             <TabsTrigger value="saved-prompts" className="data-[state=active]:bg-white/20 text-white">
               <FileText className="w-4 h-4 mr-2" />
-              Saved Prompts
+              Saved Requests
             </TabsTrigger>
             <TabsTrigger value="knowledge-files" className="data-[state=active]:bg-white/20 text-white">
               <FolderOpen className="w-4 h-4 mr-2" />
               Knowledge Files
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="data-[state=active]:bg-white/20 text-white">
+              <Activity className="w-4 h-4 mr-2" />
+              Activity
             </TabsTrigger>
             {/* Management tabs - role-based visibility */}
             <TabsTrigger value="user-management" className="data-[state=active]:bg-white/20 text-white">
@@ -341,7 +376,7 @@ export default function AdminDashboard() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-blue-200">
@@ -353,6 +388,15 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-blue-300">
+                    {stats?.usersByRole?.USER || 0} Regular | {
+                      isSuperAdmin()
+                        ? (stats?.usersByRole?.ADMIN || 0) + (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0) + (stats?.usersByRole?.SUPER_ADMIN || 0)
+                        : isCompanyAdmin() && !isSuperAdmin()
+                        ? (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
+                        : (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
+                    } Admins
+                  </p>
+                  <p className="text-xs text-blue-300 mt-1">
                     +{stats?.recentUsers || 0} this week
                   </p>
                 </CardContent>
@@ -376,41 +420,38 @@ export default function AdminDashboard() {
 
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-blue-200">Regular Users</CardDescription>
-                  <CardTitle className="text-3xl text-white">
-                    {stats?.usersByRole?.USER || 0}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-
-              <Card className="bg-white/10 border-white/20">
-                <CardHeader className="pb-2">
                   <CardDescription className="text-blue-200">
-                    {isDeptAdmin ? 'Dept Admins' : 'Admins'}
+                    Total Requests
                   </CardDescription>
-                  <CardTitle className="text-3xl text-white">
-                    {isSuperAdmin()
-                      ? (stats?.usersByRole?.ADMIN || 0) + (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0) + (stats?.usersByRole?.SUPER_ADMIN || 0)
-                      : isCompanyAdmin() && !isSuperAdmin()
-                      ? (stats?.usersByRole?.COMPANY_ADMIN || 0) + (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
-                      : (stats?.usersByRole?.DEPARTMENT_ADMIN || 0)
-                    }
+                  <CardTitle className="text-3xl text-white flex items-center gap-2">
+                    {savedPromptsStats?.total || 0}
+                    {savedPromptsStats?.customCount > 0 && (
+                      <span className="flex items-center text-sm font-normal text-amber-300">
+                        <Zap className="w-4 h-4 mr-1" />
+                        {savedPromptsStats.customCount} custom
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-blue-300">
+                    +{savedPromptsStats?.recentCount || 0} this week
+                  </p>
+                </CardContent>
               </Card>
             </div>
 
-            {/* Saved Prompts Summary */}
+            {/* Saved Requests Summary */}
             {savedPromptsStats && (
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-purple-400" />
-                  Saved Prompts Overview
+                  Saved Requests Overview
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30">
                     <CardHeader className="pb-2">
-                      <CardDescription className="text-purple-200">Total Prompts</CardDescription>
+                      <CardDescription className="text-purple-200">Total Requests</CardDescription>
                       <CardTitle className="text-3xl text-white">
                         {savedPromptsStats.total || 0}
                       </CardTitle>
@@ -419,7 +460,7 @@ export default function AdminDashboard() {
 
                   <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
                     <CardHeader className="pb-2">
-                      <CardDescription className="text-green-200">Productivity Prompts</CardDescription>
+                      <CardDescription className="text-green-200">Productivity Requests</CardDescription>
                       <CardTitle className="text-3xl text-white">
                         {savedPromptsStats.byType?.productivity || 0}
                       </CardTitle>
@@ -428,7 +469,7 @@ export default function AdminDashboard() {
 
                   <Card className="bg-gradient-to-br from-blue-900/50 to-blue-800/30 border-blue-500/30">
                     <CardHeader className="pb-2">
-                      <CardDescription className="text-blue-200">Performance Prompts</CardDescription>
+                      <CardDescription className="text-blue-200">Performance Requests</CardDescription>
                       <CardTitle className="text-3xl text-white">
                         {savedPromptsStats.byType?.performance || 0}
                       </CardTitle>
@@ -740,14 +781,14 @@ export default function AdminDashboard() {
           </TabsContent>
           */}
 
-          {/* Saved Prompts Tab */}
+          {/* Saved Requests Tab */}
           <TabsContent value="saved-prompts" className="space-y-4">
             {/* Summary Stats */}
             {savedPromptsStats && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30">
                   <CardHeader className="pb-2">
-                    <CardDescription className="text-purple-200">Total Prompts</CardDescription>
+                    <CardDescription className="text-purple-200">Total Requests</CardDescription>
                     <CardTitle className="text-2xl text-white">
                       {savedPromptsStats.total}
                     </CardTitle>
@@ -886,7 +927,7 @@ export default function AdminDashboard() {
                       {(!savedPrompts.data || savedPrompts.data.length === 0) && (
                         <tr>
                           <td colSpan="6" className="p-8 text-center text-blue-300">
-                            No saved prompts found. Users save prompts when generating deliverable content.
+                            No saved requests found. Users save requests when generating deliverable content.
                           </td>
                         </tr>
                       )}
@@ -930,6 +971,131 @@ export default function AdminDashboard() {
           {/* Knowledge Files Tab */}
           <TabsContent value="knowledge-files" className="space-y-4">
             <KnowledgeFileManager />
+          </TabsContent>
+
+          {/* Activity Tab */}
+          <TabsContent value="activity" className="space-y-4">
+            {/* Activity Stats */}
+            {activityStats && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="bg-gradient-to-br from-indigo-900/50 to-indigo-800/30 border-indigo-500/30">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-indigo-200">Total Activity</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {activityStats.totalLogs || 0}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-green-200">File Uploads</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {activityStats.byType?.file_upload || 0}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="bg-white/10 border-white/20">
+                  <CardHeader className="pb-2">
+                    <CardDescription className="text-blue-200">This Week</CardDescription>
+                    <CardTitle className="text-2xl text-white">
+                      {activityStats.recentLogs || 0}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
+            )}
+
+            {/* Activity Log Table */}
+            <Card className="bg-white/10 border-white/20">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-indigo-400" />
+                  Knowledge File Activity
+                </CardTitle>
+                <CardDescription className="text-blue-200">
+                  File uploads and access within your {isDeptAdmin ? 'department' : isCompanyAdmin() && !isSuperAdmin() ? 'company' : 'organization'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left p-4 text-blue-200 font-medium">Activity</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">File</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">User</th>
+                        <th className="text-left p-4 text-blue-200 font-medium">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activityLogs.data?.map((log) => (
+                        <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="p-4">
+                            <Badge
+                              variant="outline"
+                              className={
+                                log.activityType === 'file_upload'
+                                  ? 'border-green-400 text-green-300'
+                                  : 'border-blue-400 text-blue-300'
+                              }
+                            >
+                              {log.activityType === 'file_upload' ? 'Upload' : 'Access'}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <p className="text-white text-sm">{log.metadata?.fileName || '-'}</p>
+                            <p className="text-blue-300 text-xs">{log.metadata?.fileType || '-'}</p>
+                          </td>
+                          <td className="p-4 text-blue-300 text-sm">
+                            {log.metadata?.userName || '-'}
+                          </td>
+                          <td className="p-4 text-blue-300 text-sm">
+                            {formatDate(log.createdAt)}
+                          </td>
+                        </tr>
+                      ))}
+                      {(!activityLogs.data || activityLogs.data.length === 0) && (
+                        <tr>
+                          <td colSpan="4" className="p-8 text-center text-blue-300">
+                            No activity recorded yet. File uploads and downloads will appear here.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {activityLogs.pagination?.totalPages > 1 && (
+                  <div className="flex items-center justify-between p-4 border-t border-white/10">
+                    <p className="text-blue-300 text-sm">
+                      Page {activityLogs.pagination.page} of {activityLogs.pagination.totalPages}
+                      {activityLogs.pagination.total && ` (${activityLogs.pagination.total} total)`}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => loadActivityLogs(activityPage - 1)}
+                        disabled={activityPage <= 1}
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => loadActivityLogs(activityPage + 1)}
+                        disabled={activityPage >= activityLogs.pagination.totalPages}
+                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* User Management Tab */}
@@ -1063,15 +1229,15 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Saved Prompt Details Dialog */}
+      {/* Saved Request Details Dialog */}
       <Dialog open={!!selectedPrompt} onOpenChange={() => setSelectedPrompt(null)}>
         <DialogContent className="sm:max-w-3xl bg-slate-900 border-white/20 text-white max-h-[80vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-purple-400" />
-              Saved Prompt Details
+              Saved Request Details
             </DialogTitle>
-            <DialogDescription>View deliverable prompt information</DialogDescription>
+            <DialogDescription>View deliverable request information</DialogDescription>
           </DialogHeader>
           {selectedPrompt && (
             <ScrollArea className="max-h-[60vh]">
@@ -1129,7 +1295,7 @@ export default function AdminDashboard() {
                 {selectedPrompt.prompts && selectedPrompt.prompts.length > 0 && (
                   <div>
                     <p className="text-blue-300 text-sm mb-2">
-                      Prompts ({selectedPrompt.prompts.length} steps)
+                      Requests ({selectedPrompt.prompts.length} steps)
                     </p>
                     <div className="space-y-3">
                       {selectedPrompt.prompts.map((p, i) => (

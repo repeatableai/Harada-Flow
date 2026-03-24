@@ -57,7 +57,7 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       console.error("Error loading prompts:", error);
       toast({
         title: "Error",
-        description: "Failed to load saved prompts",
+        description: "Failed to load saved requests",
         variant: "destructive",
       });
     } finally {
@@ -71,8 +71,8 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       await SavedPrompt.delete(prompt.id);
       setPrompts(prev => prev.filter(p => p.id !== prompt.id));
       toast({
-        title: "Prompt deleted",
-        description: `Deleted "${prompt.deliverable_name}" prompts`,
+        title: "Request deleted",
+        description: `Deleted "${prompt.deliverable_name}" requests`,
       });
       if (onPromptDeleted) {
         onPromptDeleted(prompt.id);
@@ -81,7 +81,7 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       console.error("Error deleting prompt:", error);
       toast({
         title: "Error",
-        description: "Failed to delete prompt",
+        description: "Failed to delete request",
         variant: "destructive",
       });
     } finally {
@@ -97,7 +97,7 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       setTimeout(() => setCopiedIndex(null), 2000);
       toast({
         title: "Copied!",
-        description: "Prompt copied to clipboard",
+        description: "Request copied to clipboard",
       });
     } catch (err) {
       console.error('Failed to copy text:', err);
@@ -118,7 +118,7 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       await navigator.clipboard.writeText(allText);
       toast({
         title: "Copied!",
-        description: "All prompts copied to clipboard",
+        description: "All requests copied to clipboard",
       });
     } catch (err) {
       console.error('Failed to copy text:', err);
@@ -147,9 +147,9 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       <Card className="bg-white/5 backdrop-blur-lg border-white/10">
         <CardContent className="py-12 text-center">
           <Inbox className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No Saved Prompts</h3>
+          <h3 className="text-lg font-medium text-white mb-2">No Saved Requests</h3>
           <p className="text-gray-400">
-            Generate prompts for a deliverable to see them saved here.
+            Generate requests for a deliverable to see them saved here.
           </p>
         </CardContent>
       </Card>
@@ -204,7 +204,7 @@ export default function SavedPromptsList({ onPromptDeleted }) {
                             </Badge>
                           )}
                           <span className="text-xs text-gray-500">
-                            {savedPrompt.prompts?.length || 0} prompts
+                            {savedPrompt.prompts?.length || 0} steps
                           </span>
                         </div>
                       </div>
@@ -321,9 +321,9 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent className="bg-gray-900 border-gray-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Saved Prompts?</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Delete Saved Requests?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              This will permanently delete the "{deleteConfirm?.deliverable_name}" prompts.
+              This will permanently delete the "{deleteConfirm?.deliverable_name}" requests.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

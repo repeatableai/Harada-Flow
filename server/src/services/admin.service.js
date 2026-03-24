@@ -443,6 +443,7 @@ export async function getSavedPromptStats() {
     total,
     byType,
     recentCount,
+    customCount,
   ] = await Promise.all([
     prisma.savedPrompt.count(),
     prisma.savedPrompt.groupBy({
@@ -456,11 +457,17 @@ export async function getSavedPromptStats() {
         },
       },
     }),
+    prisma.savedPrompt.count({
+      where: {
+        isCustom: true,
+      },
+    }),
   ]);
 
   return {
     total,
     recentCount,
+    customCount,
     byType: byType.reduce((acc, item) => {
       acc[item.deliverableType] = item._count;
       return acc;

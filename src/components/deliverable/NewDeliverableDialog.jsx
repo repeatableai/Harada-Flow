@@ -35,7 +35,7 @@ export default function NewDeliverableDialog({ open, onOpenChange, onSubmit }) {
         <DialogHeader>
           <DialogTitle className="text-white">Create Custom Deliverable</DialogTitle>
           <DialogDescription className="text-blue-200">
-            Describe the deliverable you want to create prompts for
+            Describe the deliverable you want to create requests for
           </DialogDescription>
         </DialogHeader>
 
@@ -93,7 +93,7 @@ export default function NewDeliverableDialog({ open, onOpenChange, onSubmit }) {
             disabled={!description.trim()}
             className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white disabled:opacity-50"
           >
-            Create Prompts
+            Create Requests
           </Button>
         </DialogFooter>
       </DialogContent>
