@@ -448,7 +448,7 @@ export default function AdminDashboard() {
                   <FileText className="w-5 h-5 text-purple-400" />
                   Saved Requests Overview
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30">
                     <CardHeader className="pb-2">
                       <CardDescription className="text-purple-200">Total Requests</CardDescription>
@@ -472,6 +472,18 @@ export default function AdminDashboard() {
                       <CardDescription className="text-blue-200">Performance Requests</CardDescription>
                       <CardTitle className="text-3xl text-white">
                         {savedPromptsStats.byType?.performance || 0}
+                      </CardTitle>
+                    </CardHeader>
+                  </Card>
+
+                  <Card className="bg-gradient-to-br from-amber-900/50 to-amber-800/30 border-amber-500/30">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="text-amber-200 flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        Custom Requests
+                      </CardDescription>
+                      <CardTitle className="text-3xl text-white">
+                        {savedPromptsStats.customCount || 0}
                       </CardTitle>
                     </CardHeader>
                   </Card>
