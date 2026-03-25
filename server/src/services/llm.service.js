@@ -77,9 +77,11 @@ export async function invokeLLM({
       }
     }
 
-    const message = await anthropic.messages.create({
+    // Use streaming to prevent connection timeouts on large responses
+    console.log('Starting streaming request to Anthropic...');
+    const stream = anthropic.messages.stream({
       model: config.anthropic.model,
-      max_tokens: 8192,
+      max_tokens: 32768,
       system: systemMessage,
       messages: [
         {
@@ -89,8 +91,22 @@ export async function invokeLLM({
       ],
     });
 
-    // Extract the text content from the response
-    const content = message.content[0]?.text;
+    // Accumulate streamed text chunks
+    let content = '';
+    let chunkCount = 0;
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.text) {
+        content += event.delta.text;
+        chunkCount++;
+        // Log progress every 100 chunks
+        if (chunkCount % 100 === 0) {
+          console.log(`Streaming progress: ${chunkCount} chunks, ${content.length} chars received`);
+        }
+      }
+    }
+
+    console.log(`Streaming complete: ${chunkCount} total chunks, ${content.length} total chars`);
 
     if (!content) {
       throw new Error('No response content from Anthropic');
