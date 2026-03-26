@@ -9,14 +9,20 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
+// Helper to validate URL or allow empty string/null
+const urlOrEmpty = z.string().refine(
+  (val) => val === '' || val === null || /^https?:\/\/.+/.test(val),
+  { message: 'Must be a valid URL or empty' }
+).optional().nullable();
+
 const createCompanySchema = z.object({
   job_title: z.string().min(1).optional(),
   jobTitle: z.string().min(1).optional(),
   industry: z.string().min(1),
   company_size: z.string().min(1).optional(),
   companySize: z.string().min(1).optional(),
-  company_url: z.string().url().optional().nullable(),
-  companyUrl: z.string().url().optional().nullable(),
+  company_url: urlOrEmpty,
+  companyUrl: urlOrEmpty,
 }).refine(data => data.job_title || data.jobTitle, {
   message: 'job_title or jobTitle is required',
 }).refine(data => data.company_size || data.companySize, {
@@ -29,8 +35,8 @@ const updateCompanySchema = z.object({
   industry: z.string().min(1).optional(),
   company_size: z.string().min(1).optional(),
   companySize: z.string().min(1).optional(),
-  company_url: z.string().url().optional().nullable(),
-  companyUrl: z.string().url().optional().nullable(),
+  company_url: urlOrEmpty,
+  companyUrl: urlOrEmpty,
   productivity_matrix: z.any().optional(),
   productivityMatrix: z.any().optional(),
   performance_matrix: z.any().optional(),

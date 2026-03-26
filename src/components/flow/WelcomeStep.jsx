@@ -167,8 +167,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         job_title: extractionResult.job_title,
         industry: extractionResult.industry || 'General',
         company_size: extractionResult.company_size || 'medium',
-        company_url: extractionResult.company_url || '',
-        source_type: 'file_upload'
+        company_url: extractionResult.company_url || null
       });
 
       // Link uploaded files to the new company
