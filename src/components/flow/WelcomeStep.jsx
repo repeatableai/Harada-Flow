@@ -102,28 +102,45 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     }
   };
 
+  // Handle mode switching - clear the other mode's data to ensure only one method is used
+  const handleModeSwitch = async (newMode) => {
+    if (newMode === inputMode) return;
+
+    if (newMode === 'form') {
+      // Switching to form mode - delete any uploaded files
+      if (uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          try {
+            await apiClient.knowledgeFiles.delete(file.id);
+          } catch (error) {
+            console.error('Failed to delete file during mode switch:', error);
+          }
+        }
+        setUploadedFiles([]);
+      }
+    } else if (newMode === 'upload') {
+      // Switching to upload mode - clear form data (except pre-filled org data)
+      setFormData({
+        job_title: "",
+        industry: "",
+        company_size: "",
+        company_url: ""
+      });
+      setIsPreFilled(false);
+    }
+
+    setInputMode(newMode);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // First, create the company session record
+      // Create the company session record with form data
       const newCompany = await Company.create(formData);
 
-      // Link uploaded files to the new company (non-blocking)
-      if (uploadedFiles.length > 0) {
-        Promise.all(
-          uploadedFiles.map(file =>
-            apiClient.knowledgeFiles.linkToCompany(file.id, newCompany.id).catch(err => {
-              console.error('Failed to link file to company:', file.originalName, err);
-            })
-          )
-        ).catch(err => {
-          console.error('Failed to link files to company:', err);
-        });
-      }
-
-      // Then, update the user's profile with the new job title non-blockingly
+      // Update the user's profile with the new job title non-blockingly
       UserApi.updateMe({ job_title: formData.job_title }).catch(err => {
         console.error("Failed to update user profile:", err);
       });
@@ -256,24 +273,26 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
               <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
                 <button
                   type="button"
-                  onClick={() => setInputMode('form')}
+                  onClick={() => handleModeSwitch('form')}
+                  disabled={isUploadingFiles || isSubmitting}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'form'
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
                       : 'text-blue-300 hover:text-white hover:bg-white/10'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <Edit3 className="w-4 h-4" />
                   Fill in Details
                 </button>
                 <button
                   type="button"
-                  onClick={() => setInputMode('upload')}
+                  onClick={() => handleModeSwitch('upload')}
+                  disabled={isUploadingFiles || isSubmitting}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'upload'
                       ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg'
                       : 'text-blue-300 hover:text-white hover:bg-white/10'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <FileUp className="w-4 h-4" />
                   Upload Documents
