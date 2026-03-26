@@ -117,9 +117,14 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           }
         }
         setUploadedFiles([]);
+        toast({
+          title: "Switched to manual entry",
+          description: "Your uploaded files have been removed. Please fill in your role details.",
+        });
       }
     } else if (newMode === 'upload') {
-      // Switching to upload mode - clear form data (except pre-filled org data)
+      // Switching to upload mode - clear form data
+      const hadFormData = formData.job_title || formData.industry || formData.company_size;
       setFormData({
         job_title: "",
         industry: "",
@@ -127,6 +132,12 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         company_url: ""
       });
       setIsPreFilled(false);
+      if (hadFormData) {
+        toast({
+          title: "Switched to document upload",
+          description: "Your form data has been cleared. Upload documents to extract your role details.",
+        });
+      }
     }
 
     setInputMode(newMode);
@@ -267,8 +278,9 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           <CardContent>
             {/* Inline Mode Toggle */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-blue-200">How would you like to define your role?</span>
+                <span className="text-xs text-blue-300/70 italic">Choose one method</span>
               </div>
               <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
                 <button
