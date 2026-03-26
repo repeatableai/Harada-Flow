@@ -15,15 +15,15 @@ const invokeLLMSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required'),
   response_json_schema: z.any().optional(),
   add_context_from_internet: z.boolean().optional(),
-  company_url: z.string().optional(),
+  company_url: z.string().optional().nullable(),
   // Time study tracking params
   operationType: z.string().optional(),
   operationName: z.string().optional(),
-  companyId: z.string().optional(),
+  companyId: z.string().optional().nullable(),
   // Dynamic baseline params
-  industry: z.string().optional(),
-  companySize: z.string().optional(),
-  deliverableName: z.string().optional(),
+  industry: z.string().optional().nullable(),
+  companySize: z.string().optional().nullable(),
+  deliverableName: z.string().optional().nullable(),
 });
 
 // POST /api/integrations/llm - Invoke LLM
