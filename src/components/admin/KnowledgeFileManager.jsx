@@ -45,6 +45,10 @@ import {
   Filter,
   X,
   AlertTriangle,
+  Eye,
+  ArrowLeft,
+  AlertCircle,
+  Users,
 } from 'lucide-react';
 
 const SCOPE_OPTIONS = [
@@ -96,6 +100,74 @@ const groupFilesByOrganization = (filesData) => {
   });
 };
 
+// Group files by scope for company admin view
+const SCOPE_GROUP_STYLES = {
+  company: {
+    name: 'Company-wide Files',
+    icon: Building2,
+    iconClass: 'text-blue-400',
+    textClass: 'text-blue-300',
+    badgeClass: 'border-blue-400/50 text-blue-300',
+  },
+  departments: {
+    name: 'Department Files',
+    icon: Users,
+    iconClass: 'text-green-400',
+    textClass: 'text-green-300',
+    badgeClass: 'border-green-400/50 text-green-300',
+  },
+  self: {
+    name: 'Personal Files',
+    icon: User,
+    iconClass: 'text-gray-400',
+    textClass: 'text-gray-300',
+    badgeClass: 'border-gray-400/50 text-gray-300',
+  },
+  system: {
+    name: 'System Files',
+    icon: Globe,
+    iconClass: 'text-purple-400',
+    textClass: 'text-purple-300',
+    badgeClass: 'border-purple-400/50 text-purple-300',
+  },
+};
+
+const groupFilesByScope = (filesData) => {
+  const groups = {
+    company: { ...SCOPE_GROUP_STYLES.company, files: [] },
+    departments: { ...SCOPE_GROUP_STYLES.departments, files: [] },
+    self: { ...SCOPE_GROUP_STYLES.self, files: [] },
+    system: { ...SCOPE_GROUP_STYLES.system, files: [] },
+  };
+
+  filesData?.forEach(file => {
+    const scope = file.scope || 'self';
+    if (groups[scope]) {
+      groups[scope].files.push(file);
+    } else {
+      groups.self.files.push(file);
+    }
+  });
+
+  // Return only groups that have files, in order: company, departments, personal, system
+  return Object.entries(groups)
+    .filter(([_, group]) => group.files.length > 0)
+    .sort((a, b) => {
+      const order = { company: 0, departments: 1, self: 2, system: 3 };
+      return (order[a[0]] ?? 99) - (order[b[0]] ?? 99);
+    });
+};
+
+// Check if file can be previewed in browser
+const canPreview = (mimeType) => {
+  return (
+    mimeType?.includes('image') ||
+    mimeType === 'application/pdf' ||
+    mimeType === 'text/plain' ||
+    mimeType === 'text/csv'
+  );
+};
+
 export default function KnowledgeFileManager() {
   const { user, isAdmin, isCompanyAdmin, isSuperAdmin, organization, department } = useAuth();
 
@@ -124,6 +196,9 @@ export default function KnowledgeFileManager() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // View file state
+  const [viewingFile, setViewingFile] = useState(null);
 
   // Permission helpers
   const canUploadToScope = (scope) => {
@@ -296,6 +371,10 @@ export default function KnowledgeFileManager() {
     } catch (error) {
       console.error('Download failed:', error);
     }
+  };
+
+  const handleView = (file) => {
+    setViewingFile(file);
   };
 
   const handleDelete = async () => {
@@ -488,6 +567,104 @@ export default function KnowledgeFileManager() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
+                                  onClick={() => handleView(file)}
+                                  className="text-green-300 hover:text-white hover:bg-green-500/10"
+                                  title="View"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDownload(file)}
+                                  className="text-blue-300 hover:text-white hover:bg-white/10"
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                                {canDelete(file) && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openDeleteDialog(file)}
+                                    className="text-red-300 hover:text-white hover:bg-red-500/10"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))
+                  ) : isCompanyAdmin() && files.data?.length > 0 ? (
+                    /* Company Admin: Show files grouped by scope */
+                    groupFilesByScope(files.data).map(([scopeKey, scopeData]) => (
+                      <React.Fragment key={scopeKey}>
+                        {/* Scope Section Header */}
+                        <tr className="bg-white/5">
+                          <td colSpan="6" className="p-3">
+                            <div className="flex items-center gap-2">
+                              <scopeData.icon className={`w-4 h-4 ${scopeData.iconClass}`} />
+                              <span className={`${scopeData.textClass} font-semibold`}>{scopeData.name}</span>
+                              <Badge variant="outline" className={`${scopeData.badgeClass} text-xs ml-2`}>
+                                {scopeData.files.length} {scopeData.files.length === 1 ? 'file' : 'files'}
+                              </Badge>
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Files for this scope */}
+                        {scopeData.files.map((file) => (
+                          <tr key={file.id} className="border-b border-white/5 hover:bg-white/5">
+                            <td className="p-4 pl-8">
+                              <div className="flex items-center gap-3">
+                                {getFileIcon(file.mimeType)}
+                                <div>
+                                  <p className="text-white font-medium truncate max-w-[200px]" title={file.originalName}>
+                                    {file.originalName}
+                                  </p>
+                                  {file.description && (
+                                    <p className="text-blue-300 text-xs truncate max-w-[200px]" title={file.description}>
+                                      {file.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4 text-blue-300 text-sm">
+                              {formatFileSize(file.size)}
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline" className={SCOPE_COLORS[file.scope]}>
+                                {file.scope === 'self' && 'Personal'}
+                                {file.scope === 'departments' && 'Departments'}
+                                {file.scope === 'company' && 'Company'}
+                                {file.scope === 'system' && 'System'}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <p className="text-white text-sm">{file.uploader?.name || 'Unknown'}</p>
+                              <p className="text-blue-300 text-xs">{file.uploader?.email}</p>
+                            </td>
+                            <td className="p-4 text-blue-300 text-sm">
+                              {formatDate(file.createdAt)}
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleView(file)}
+                                  className="text-green-300 hover:text-white hover:bg-green-500/10"
+                                  title="View"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
                                   onClick={() => handleDownload(file)}
                                   className="text-blue-300 hover:text-white hover:bg-white/10"
                                   title="Download"
@@ -512,7 +689,7 @@ export default function KnowledgeFileManager() {
                       </React.Fragment>
                     ))
                   ) : (
-                    /* Non-Super Admin: Show flat file list */
+                    /* Regular users: Show flat file list with View button */
                     files.data?.map((file) => (
                       <tr key={file.id} className="border-b border-white/5 hover:bg-white/5">
                         <td className="p-4">
@@ -550,6 +727,15 @@ export default function KnowledgeFileManager() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleView(file)}
+                              className="text-green-300 hover:text-white hover:bg-green-500/10"
+                              title="View"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -867,6 +1053,158 @@ export default function KnowledgeFileManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View File Dialog */}
+      <Dialog open={!!viewingFile} onOpenChange={(open) => !open && setViewingFile(null)}>
+        <DialogContent className="bg-slate-900 border-white/20 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewingFile(null)}
+                className="h-8 w-8 p-0 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div className="flex-1 min-w-0">
+                <DialogTitle className="flex items-center gap-2 truncate">
+                  {viewingFile && getFileIcon(viewingFile.mimeType)}
+                  <span className="truncate">{viewingFile?.originalName}</span>
+                </DialogTitle>
+                <div className="flex items-center gap-2 mt-1 text-sm text-blue-300">
+                  <span>{viewingFile && formatFileSize(viewingFile.size)}</span>
+                  {viewingFile && (
+                    <Badge variant="outline" className={SCOPE_COLORS[viewingFile.scope]}>
+                      {viewingFile.scope === 'self' && 'Personal'}
+                      {viewingFile.scope === 'departments' && 'Departments'}
+                      {viewingFile.scope === 'company' && 'Company'}
+                      {viewingFile.scope === 'system' && 'System'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => viewingFile && handleDownload(viewingFile)}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden rounded-lg bg-white/5 border border-white/10">
+            {viewingFile && <FileViewer file={viewingFile} />}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// File Viewer Component
+function FileViewer({ file }) {
+  const [content, setContent] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [blobUrl, setBlobUrl] = useState(null);
+
+  useEffect(() => {
+    loadFileContent();
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [file.id]);
+
+  const loadFileContent = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { blob } = await apiClient.knowledgeFiles.download(file.id);
+      const url = URL.createObjectURL(blob);
+      setBlobUrl(url);
+
+      // For text files, read the content
+      if (file.mimeType === 'text/plain' || file.mimeType === 'text/csv') {
+        const text = await blob.text();
+        setContent(text);
+      }
+    } catch (err) {
+      console.error('Failed to load file:', err);
+      setError('Failed to load file content');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[300px]">
+        <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-300">
+        <AlertCircle className="w-8 h-8 mb-2" />
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  // Image preview
+  if (file.mimeType?.includes('image')) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[300px] p-4 overflow-auto">
+        <img
+          src={blobUrl}
+          alt={file.originalName}
+          className="max-w-full max-h-[60vh] object-contain rounded"
+        />
+      </div>
+    );
+  }
+
+  // PDF preview
+  if (file.mimeType === 'application/pdf') {
+    return (
+      <iframe
+        src={blobUrl}
+        className="w-full h-full min-h-[500px]"
+        title={file.originalName}
+      />
+    );
+  }
+
+  // Text/CSV preview
+  if (file.mimeType === 'text/plain' || file.mimeType === 'text/csv') {
+    return (
+      <div className="h-full min-h-[300px] overflow-auto p-4">
+        <pre className="text-sm text-blue-100 whitespace-pre-wrap font-mono">
+          {content}
+        </pre>
+      </div>
+    );
+  }
+
+  // For other file types (Word, Excel), show a message
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-blue-300 p-8 text-center">
+      <File className="w-12 h-12 mb-4 text-gray-400" />
+      <p className="text-lg font-medium text-white">{file.originalName}</p>
+      <p className="mt-2 text-sm">
+        This file type cannot be previewed in the browser.
+      </p>
+      <p className="text-sm text-blue-400">
+        Please download the file to view its contents.
+      </p>
     </div>
   );
 }
