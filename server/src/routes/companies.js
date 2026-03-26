@@ -9,13 +9,9 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
-// Helper to validate URL or allow empty string/null/undefined
-const urlOrEmpty = z.union([
-  z.string().url(),
-  z.literal(''),
-  z.null(),
-  z.undefined(),
-]);
+// Accept any string or null/undefined for company_url - don't validate URL format
+// since LLM extraction may return non-URL values like "N/A" or partial URLs
+const urlOrEmpty = z.string().optional().nullable();
 
 const createCompanySchema = z.object({
   job_title: z.string().min(1).optional(),
