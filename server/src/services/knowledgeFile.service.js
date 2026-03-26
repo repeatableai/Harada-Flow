@@ -492,6 +492,117 @@ export async function deleteFile(fileId, user) {
 }
 
 /**
+ * Get organization/company-wide knowledge files available as additional context
+ * Returns files with scope: company, departments (user's dept), or system
+ * These are files uploaded by admins that can enhance matrix generation
+ */
+export async function getAvailableContextFiles(user) {
+  const whereClause = {
+    OR: [
+      // System-wide files (visible to everyone)
+      { scope: 'system' },
+      // Company-wide files in user's organization
+      ...(user.organizationId ? [{
+        AND: [
+          { organizationId: user.organizationId },
+          { scope: 'company' },
+        ],
+      }] : []),
+      // Department files for user's department
+      ...(user.departmentId ? [{
+        AND: [
+          { scope: 'departments' },
+          { departmentIds: { has: user.departmentId } },
+        ],
+      }] : []),
+    ],
+    // Exclude user's own personal files - those are handled separately
+    NOT: {
+      AND: [
+        { uploaderId: user.id },
+        { scope: 'self' },
+      ],
+    },
+  };
+
+  const files = await prisma.knowledgeFile.findMany({
+    where: whereClause,
+    include: {
+      uploader: {
+        select: { id: true, name: true, email: true },
+      },
+      organization: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return files.map(formatFileResponse);
+}
+
+/**
+ * Get files by IDs for LLM context (with access check)
+ * @param {string[]} fileIds - Array of file IDs
+ * @param {object} user - User object for access check
+ * @returns {Promise<Array>} - Array of accessible file records
+ */
+export async function getFilesByIds(fileIds, user) {
+  if (!fileIds || fileIds.length === 0) return [];
+
+  const files = await prisma.knowledgeFile.findMany({
+    where: { id: { in: fileIds } },
+    select: {
+      id: true,
+      filename: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      scope: true,
+      uploaderId: true,
+      organizationId: true,
+      departmentIds: true,
+      sharedUserIds: true,
+    },
+  });
+
+  // Filter to only files the user can access
+  const ROLE_LEVELS = {
+    USER: 1,
+    DEPARTMENT_ADMIN: 2,
+    COMPANY_ADMIN: 3,
+    ADMIN: 3,
+    SUPER_ADMIN: 4,
+  };
+
+  const roleLevel = ROLE_LEVELS[user.role] || 0;
+
+  return files.filter(file => {
+    // Super admin can access everything
+    if (roleLevel >= ROLE_LEVELS.SUPER_ADMIN) return true;
+
+    // Company admin can access all files in their org
+    if (roleLevel >= ROLE_LEVELS.COMPANY_ADMIN && file.organizationId === user.organizationId) return true;
+
+    // Check scope-based access
+    switch (file.scope) {
+      case 'self':
+        return file.uploaderId === user.id;
+      case 'users':
+        return file.sharedUserIds?.includes(user.id) || file.uploaderId === user.id;
+      case 'departments':
+        return file.departmentIds?.includes(user.departmentId) || file.uploaderId === user.id;
+      case 'company':
+        return file.organizationId === user.organizationId;
+      case 'system':
+        return true;
+      default:
+        return file.uploaderId === user.id;
+    }
+  });
+}
+
+/**
  * Get all files linked to a session (company) for LLM context
  * @param {string} companyId - The session/company ID
  * @returns {Promise<Array>} - Array of file records with text-extractable info

@@ -6,6 +6,8 @@ export const InvokeLLM = async ({
   response_json_schema,
   add_context_from_internet,
   company_url,
+  // Additional knowledge files as context
+  knowledgeFileIds,
   // Time study tracking params
   operationType,
   operationName,
@@ -22,6 +24,8 @@ export const InvokeLLM = async ({
       response_json_schema,
       add_context_from_internet,
       company_url,
+      // Additional knowledge files as context
+      knowledgeFileIds,
       // Time study tracking params
       operationType,
       operationName,

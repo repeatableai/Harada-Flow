@@ -19,6 +19,7 @@ export default function HomePage() {
   const [company, setCompany] = useState(null);
   const [user, setUser] = useState(null);
   const [userCompanies, setUserCompanies] = useState([]);
+  const [knowledgeFileIds, setKnowledgeFileIds] = useState([]);
 
   // Ref to track if we're starting a new role (avoids race condition with loadLatest)
   const isStartingNewRef = useRef(false);
@@ -101,8 +102,9 @@ export default function HomePage() {
     loadLatest();
   }, []);
 
-  const handleCompanyCreated = (newCompany) => {
+  const handleCompanyCreated = (newCompany, selectedKnowledgeFileIds = []) => {
     setCompany(newCompany);
+    setKnowledgeFileIds(selectedKnowledgeFileIds);
     setStep('builder');
   };
   
@@ -170,7 +172,7 @@ export default function HomePage() {
           />
         );
       case 'builder':
-        return <MatrixBuilderStep company={company} onMatricesFinalized={handleMatricesFinalized} onStartOver={handleStartOver} />;
+        return <MatrixBuilderStep company={company} knowledgeFileIds={knowledgeFileIds} onMatricesFinalized={handleMatricesFinalized} onStartOver={handleStartOver} />;
       case 'creator':
         return (
           <DeliverableCreatorStep

@@ -16,6 +16,8 @@ const invokeLLMSchema = z.object({
   response_json_schema: z.any().optional(),
   add_context_from_internet: z.boolean().optional(),
   company_url: z.string().optional().nullable(),
+  // Additional knowledge files to include as context
+  knowledgeFileIds: z.array(z.string()).optional(),
   // Time study tracking params
   operationType: z.string().optional(),
   operationName: z.string().optional(),
@@ -45,6 +47,9 @@ router.post('/llm', async (req, res, next) => {
       response_json_schema: data.response_json_schema,
       add_context_from_internet: data.add_context_from_internet,
       company_url: data.company_url,
+      // Additional knowledge files as context
+      knowledgeFileIds: data.knowledgeFileIds,
+      user: req.user, // Pass full user for access checks
       // Time study tracking - userId from auth middleware
       operationType: data.operationType,
       operationName: data.operationName,

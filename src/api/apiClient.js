@@ -657,6 +657,11 @@ class ApiClient {
         body: JSON.stringify({ companyId }),
       });
     },
+
+    // Get organization/company-wide knowledge files available as additional context
+    getAvailableContext: async () => {
+      return this.request('/knowledge-files/available-context');
+    },
   };
 
   // Integrations - kept for compatibility but will need separate implementation

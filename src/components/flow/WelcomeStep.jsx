@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2 } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
@@ -34,6 +35,11 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+
+  // Organization knowledge files state (company-wide files from admins)
+  const [orgKnowledgeFiles, setOrgKnowledgeFiles] = useState([]);
+  const [selectedOrgFileIds, setSelectedOrgFileIds] = useState(new Set());
+  const [isLoadingOrgFiles, setIsLoadingOrgFiles] = useState(false);
 
   useEffect(() => {
     // Pre-fill form from user profile and organization data
@@ -67,6 +73,41 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
       setIsPreFilled(hasOrgData);
     }
   }, [currentUser]);
+
+  // Fetch organization knowledge files on mount
+  useEffect(() => {
+    const fetchOrgFiles = async () => {
+      setIsLoadingOrgFiles(true);
+      try {
+        const files = await apiClient.knowledgeFiles.getAvailableContext();
+        setOrgKnowledgeFiles(files || []);
+        // Auto-select all org files by default
+        if (files && files.length > 0) {
+          setSelectedOrgFileIds(new Set(files.map(f => f.id)));
+        }
+      } catch (error) {
+        console.error('Failed to fetch organization knowledge files:', error);
+      }
+      setIsLoadingOrgFiles(false);
+    };
+
+    if (currentUser) {
+      fetchOrgFiles();
+    }
+  }, [currentUser]);
+
+  // Toggle organization knowledge file selection
+  const toggleOrgFile = (fileId) => {
+    setSelectedOrgFileIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  };
 
   // Handle file selection and upload
   const handleFilesSelected = async (files) => {
@@ -156,7 +197,8 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         console.error("Failed to update user profile:", err);
       });
 
-      onCompanyCreated(newCompany);
+      // Pass company and selected org knowledge file IDs for matrix generation
+      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
     } catch (error) {
       console.error("Error saving company data:", error);
     }
@@ -217,7 +259,8 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         description: `Detected: ${extractionResult.job_title} in ${extractionResult.industry}`,
       });
 
-      onCompanyCreated(newCompany);
+      // Pass company and selected org knowledge file IDs for matrix generation
+      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
     } catch (error) {
       console.error("Error extracting role from files:", error);
       toast({
@@ -391,6 +434,36 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                     </div>
                   </div>
 
+                  {/* Organization Knowledge Files Section */}
+                  {orgKnowledgeFiles.length > 0 && (
+                    <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="w-4 h-4 text-green-400" />
+                        <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                        <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                      </div>
+                      <p className="text-blue-200/70 text-xs mb-3">
+                        These company-wide files will be used to enhance your matrix generation with organizational context.
+                      </p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {orgKnowledgeFiles.map(file => (
+                          <div key={file.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/10">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                              <span className="text-white text-xs truncate">{file.originalName}</span>
+                              <span className="text-blue-300/50 text-xs flex-shrink-0">({file.scope})</span>
+                            </div>
+                            <Switch
+                              checked={selectedOrgFileIds.has(file.id)}
+                              onCheckedChange={() => toggleOrgFile(file.id)}
+                              className="ml-2"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-6">
                     <Button
                       type="submit"
@@ -430,9 +503,39 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                   onFilesSelected={handleFilesSelected}
                   onRemoveFile={handleRemoveFile}
                   isUploading={isUploadingFiles}
-                  maxFiles={5}
+                  maxFiles={10}
                   disabled={isSubmitting}
                 />
+
+                {/* Organization Knowledge Files Section */}
+                {orgKnowledgeFiles.length > 0 && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="w-4 h-4 text-green-400" />
+                      <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                      <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                    </div>
+                    <p className="text-blue-200/70 text-xs mb-3">
+                      These company-wide files will be used to enhance your matrix generation with organizational context.
+                    </p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {orgKnowledgeFiles.map(file => (
+                        <div key={file.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/10">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                            <span className="text-white text-xs truncate">{file.originalName}</span>
+                            <span className="text-blue-300/50 text-xs flex-shrink-0">({file.scope})</span>
+                          </div>
+                          <Switch
+                            checked={selectedOrgFileIds.has(file.id)}
+                            onCheckedChange={() => toggleOrgFile(file.id)}
+                            className="ml-2"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <Button

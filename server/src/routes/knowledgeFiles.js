@@ -118,6 +118,20 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
 });
 
 /**
+ * GET /api/knowledge-files/available-context
+ * Get organization/company-wide knowledge files available as additional context
+ * Returns files with scope: company, departments (user's dept), or system
+ */
+router.get('/available-context', async (req, res, next) => {
+  try {
+    const files = await knowledgeFileService.getAvailableContextFiles(req.user);
+    res.json(files);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/knowledge-files
  * List accessible files
  */
