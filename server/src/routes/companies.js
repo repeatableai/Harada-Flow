@@ -9,11 +9,13 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
-// Helper to validate URL or allow empty string/null
-const urlOrEmpty = z.string().refine(
-  (val) => val === '' || val === null || /^https?:\/\/.+/.test(val),
-  { message: 'Must be a valid URL or empty' }
-).optional().nullable();
+// Helper to validate URL or allow empty string/null/undefined
+const urlOrEmpty = z.union([
+  z.string().url(),
+  z.literal(''),
+  z.null(),
+  z.undefined(),
+]);
 
 const createCompanySchema = z.object({
   job_title: z.string().min(1).optional(),
