@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1057,6 +1058,9 @@ export default function KnowledgeFileManager() {
       {/* View File Dialog */}
       <Dialog open={!!viewingFile} onOpenChange={(open) => !open && setViewingFile(null)}>
         <DialogContent className="bg-slate-900 border-white/20 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <VisuallyHidden>
+            <DialogDescription>File preview dialog</DialogDescription>
+          </VisuallyHidden>
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Button
