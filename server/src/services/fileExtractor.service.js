@@ -3,12 +3,36 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
+import * as storageService from './storage.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Upload directory path
+// Upload directory path (for local fallback)
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+/**
+ * Get file buffer - tries Supabase first, then local filesystem
+ * @param {string} filename - The stored filename
+ * @returns {Promise<Buffer|null>} - File buffer or null if not found
+ */
+async function getFileBuffer(filename) {
+  // Try Supabase first
+  if (storageService.isSupabaseEnabled()) {
+    const downloadResult = await storageService.downloadFile(filename);
+    if (downloadResult && downloadResult.buffer) {
+      return downloadResult.buffer;
+    }
+  }
+
+  // Fallback to local filesystem
+  const filePath = path.join(UPLOADS_DIR, filename);
+  if (fs.existsSync(filePath)) {
+    return fs.readFileSync(filePath);
+  }
+
+  return null;
+}
 
 /**
  * Extract text content from a file based on its MIME type
@@ -17,27 +41,27 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads');
  * @returns {Promise<string>} - Extracted text content
  */
 export async function extractTextFromFile(filename, mimeType) {
-  const filePath = path.join(UPLOADS_DIR, filename);
+  const fileBuffer = await getFileBuffer(filename);
 
-  if (!fs.existsSync(filePath)) {
-    console.error(`File not found: ${filePath}`);
+  if (!fileBuffer) {
+    console.error(`File not found: ${filename}`);
     return '';
   }
 
   try {
     switch (mimeType) {
       case 'application/pdf':
-        return await extractFromPDF(filePath);
+        return await extractFromPDFBuffer(fileBuffer);
 
       case 'application/msword':
       case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-        return await extractFromDOCX(filePath);
+        return await extractFromDOCXBuffer(fileBuffer);
 
       case 'text/plain':
-        return fs.readFileSync(filePath, 'utf-8');
+        return fileBuffer.toString('utf-8');
 
       case 'text/csv':
-        return fs.readFileSync(filePath, 'utf-8');
+        return fileBuffer.toString('utf-8');
 
       case 'application/vnd.ms-excel':
       case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
@@ -57,12 +81,11 @@ export async function extractTextFromFile(filename, mimeType) {
 }
 
 /**
- * Extract text from PDF file
+ * Extract text from PDF buffer
  */
-async function extractFromPDF(filePath) {
+async function extractFromPDFBuffer(buffer) {
   try {
-    const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdf(dataBuffer);
+    const data = await pdf(buffer);
     return data.text || '';
   } catch (error) {
     console.error('PDF extraction error:', error);
@@ -71,11 +94,11 @@ async function extractFromPDF(filePath) {
 }
 
 /**
- * Extract text from DOCX file
+ * Extract text from DOCX buffer
  */
-async function extractFromDOCX(filePath) {
+async function extractFromDOCXBuffer(buffer) {
   try {
-    const result = await mammoth.extractRawText({ path: filePath });
+    const result = await mammoth.extractRawText({ buffer });
     return result.value || '';
   } catch (error) {
     console.error('DOCX extraction error:', error);

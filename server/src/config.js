@@ -32,6 +32,12 @@ export default {
     model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
   },
 
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    serviceKey: process.env.SUPABASE_SERVICE_KEY, // Service role key for server-side operations
+    storageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'knowledge-files',
+  },
+
   // Session durations
   session: {
     userDuration: 72 * 60 * 60 * 1000, // 72 hours in ms

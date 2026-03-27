@@ -4,11 +4,12 @@ import { fileURLToPath } from 'url';
 import prisma from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from './activityLog.service.js';
+import * as storageService from './storage.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Upload directory path
+// Upload directory path (for local fallback)
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // Allowed file types
@@ -200,6 +201,19 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
     },
   });
 
+  // Upload file to Supabase storage (or keep local as fallback)
+  const uploadResult = await storageService.uploadFile(
+    file.filename,
+    file.path, // Multer's temp file path
+    file.mimetype
+  );
+
+  if (!uploadResult.success) {
+    // Rollback database record if storage upload fails
+    await prisma.knowledgeFile.delete({ where: { id: knowledgeFile.id } });
+    throw new AppError(`Failed to upload file to storage: ${uploadResult.error}`, 500);
+  }
+
   // Log file upload activity
   logActivity({
     userId: user.id,
@@ -214,6 +228,7 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
       fileSize: file.size,
       scope,
       userName: user.name || user.email,
+      storageType: storageService.isSupabaseEnabled() ? 'supabase' : 'local',
     },
   });
 
@@ -418,7 +433,7 @@ export async function getFile(fileId, user) {
 }
 
 /**
- * Get file for download (returns file path and metadata)
+ * Get file for download (returns file buffer/path and metadata)
  */
 export async function downloadFile(fileId, user) {
   const file = await prisma.knowledgeFile.findUnique({
@@ -433,10 +448,23 @@ export async function downloadFile(fileId, user) {
     throw new AppError('You do not have permission to download this file', 403);
   }
 
-  const filePath = path.join(UPLOADS_DIR, file.filename);
+  // Try to get file from Supabase first, then fall back to local
+  let fileBuffer = null;
+  let filePath = null;
 
-  if (!fs.existsSync(filePath)) {
-    throw new AppError('File not found on server', 404);
+  if (storageService.isSupabaseEnabled()) {
+    const downloadResult = await storageService.downloadFile(file.filename);
+    if (downloadResult && downloadResult.buffer) {
+      fileBuffer = downloadResult.buffer;
+    }
+  }
+
+  // Fallback to local storage if Supabase didn't return the file
+  if (!fileBuffer) {
+    filePath = path.join(UPLOADS_DIR, file.filename);
+    if (!fs.existsSync(filePath)) {
+      throw new AppError('File not found on server', 404);
+    }
   }
 
   // Log file access activity
@@ -455,6 +483,7 @@ export async function downloadFile(fileId, user) {
   });
 
   return {
+    buffer: fileBuffer,
     filePath,
     originalName: file.originalName,
     mimeType: file.mimeType,
@@ -477,7 +506,12 @@ export async function deleteFile(fileId, user) {
     throw new AppError('You do not have permission to delete this file', 403);
   }
 
-  // Delete file from filesystem
+  // Delete file from Supabase storage
+  if (storageService.isSupabaseEnabled()) {
+    await storageService.deleteFile(file.filename);
+  }
+
+  // Also delete from local filesystem if exists (handles migration period)
   const filePath = path.join(UPLOADS_DIR, file.filename);
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);

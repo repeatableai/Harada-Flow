@@ -171,14 +171,21 @@ router.get('/:id', async (req, res, next) => {
  */
 router.get('/:id/download', async (req, res, next) => {
   try {
-    const { filePath, originalName, mimeType } = await knowledgeFileService.downloadFile(
+    const { buffer, filePath, originalName, mimeType } = await knowledgeFileService.downloadFile(
       req.params.id,
       req.user
     );
 
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
-    res.sendFile(filePath);
+
+    if (buffer) {
+      // Send buffer directly (from Supabase)
+      res.send(buffer);
+    } else {
+      // Send from local file path
+      res.sendFile(filePath);
+    }
   } catch (error) {
     next(error);
   }
