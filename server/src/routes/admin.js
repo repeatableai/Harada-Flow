@@ -247,7 +247,7 @@ router.post('/access-requests/:id/reject', requireSuperAdmin, async (req, res, n
 // === GDPR Right to Erasure (Admin) ===
 
 // DELETE /api/admin/users/:id/erase - Erase all data for a user (GDPR data subject request)
-router.delete('/users/:id/erase', requireAdmin, async (req, res, next) => {
+router.delete('/users/:id/erase', requireDepartmentAdmin, async (req, res, next) => {
   try {
     const result = await erasureService.adminEraseUserData(req.params.id, req.user);
     res.json(result);

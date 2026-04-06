@@ -781,7 +781,7 @@ export default function UserManager() {
                               {usr.isActive !== false ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </Button>
                           )}
-                          {/* Delete Button */}
+                          {/* GDPR Erase Button */}
                           {canManage(usr.role) && usr.id !== user.id && (
                             <Button
                               size="sm"

@@ -198,12 +198,16 @@ export async function adminEraseUserData(targetUserId, callerUser) {
     throw new AppError('Use the personal data erasure endpoint to delete your own data', 400);
   }
 
-  // Check organization scoping
+  // Check organization and department scoping
   if (callerUser.role !== 'SUPER_ADMIN') {
     if (targetUser.organizationId !== callerUser.organizationId) {
       throw new AppError('Cannot erase data for users outside your organization', 403);
     }
-    if (!['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
+    if (callerUser.role === 'DEPARTMENT_ADMIN') {
+      if (targetUser.departmentId !== callerUser.departmentId) {
+        throw new AppError('Cannot erase data for users outside your department', 403);
+      }
+    } else if (!['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
       throw new AppError('Insufficient permissions to process erasure requests', 403);
     }
   }
