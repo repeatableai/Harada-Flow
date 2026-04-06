@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth.js';
 import { requireAdmin, requireDepartmentAdmin, requireSuperAdmin } from '../middleware/admin.js';
 import * as adminService from '../services/admin.service.js';
 import * as authService from '../services/auth.service.js';
+import * as erasureService from '../services/erasure.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -237,6 +238,18 @@ router.post('/access-requests/:id/reject', requireSuperAdmin, async (req, res, n
   try {
     const { reason } = req.body;
     const result = await authService.rejectAccessRequest(req.params.id, req.user.id, reason);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// === GDPR Right to Erasure (Admin) ===
+
+// DELETE /api/admin/users/:id/erase - Erase all data for a user (GDPR data subject request)
+router.delete('/users/:id/erase', requireAdmin, async (req, res, next) => {
+  try {
+    const result = await erasureService.adminEraseUserData(req.params.id, req.user);
     res.json(result);
   } catch (error) {
     next(error);

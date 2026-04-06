@@ -4,10 +4,11 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Shield, Monitor } from 'lucide-react';
+import { ArrowLeft, User, Shield, Monitor, Database } from 'lucide-react';
 import ProfileTab from '@/components/settings/ProfileTab';
 import SecurityTab from '@/components/settings/SecurityTab';
 import SessionsTab from '@/components/settings/SessionsTab';
+import DataPrivacyTab from '@/components/settings/DataPrivacyTab';
 
 function getInitials(name, email) {
   if (name && name.trim()) {
@@ -77,6 +78,13 @@ export default function Settings() {
             <Monitor className="w-4 h-4 mr-2" />
             Sessions
           </TabsTrigger>
+          <TabsTrigger
+            value="data-privacy"
+            className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-blue-200"
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Data & Privacy
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -89,6 +97,10 @@ export default function Settings() {
 
         <TabsContent value="sessions">
           <SessionsTab />
+        </TabsContent>
+
+        <TabsContent value="data-privacy">
+          <DataPrivacyTab />
         </TabsContent>
       </Tabs>
     </div>
