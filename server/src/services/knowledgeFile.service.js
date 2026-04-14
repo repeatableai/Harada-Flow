@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import prisma from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
@@ -176,10 +177,13 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
     }
   }
 
+  // Generate a unique filename (memoryStorage doesn't provide one)
+  const storedFilename = file.filename || `${crypto.randomUUID()}${path.extname(file.originalname)}`;
+
   // Create knowledge file record
   const knowledgeFile = await prisma.knowledgeFile.create({
     data: {
-      filename: file.filename,
+      filename: storedFilename,
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
@@ -201,10 +205,10 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
     },
   });
 
-  // Upload file to Supabase storage (or keep local as fallback)
+  // Upload file to storage — pass buffer (memoryStorage) or path (diskStorage fallback)
   const uploadResult = await storageService.uploadFile(
-    file.filename,
-    file.path, // Multer's temp file path
+    storedFilename,
+    file.buffer || file.path,
     file.mimetype
   );
 

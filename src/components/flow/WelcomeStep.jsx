@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight, ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -109,6 +109,16 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     });
   };
 
+  const selectAllOrgFiles = () => {
+    setSelectedOrgFileIds(new Set(orgKnowledgeFiles.map(f => f.id)));
+  };
+
+  const deselectAllOrgFiles = () => {
+    setSelectedOrgFileIds(new Set());
+  };
+
+  const allOrgFilesSelected = orgKnowledgeFiles.length > 0 && selectedOrgFileIds.size === orgKnowledgeFiles.length;
+
   // Handle file selection and upload
   const handleFilesSelected = async (files) => {
     setIsUploadingFiles(true);
@@ -123,9 +133,36 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           `Context file for ${formData.job_title || 'my role'}`,
           null    // No organization override
         );
+
+        // CUI sniffer: WARN — flagged
+        if (result.cuiWarning) {
+          toast({
+            title: "Upload Rejected",
+            description: `Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.`,
+            variant: "destructive",
+            duration: 10000,
+          });
+          continue;
+        }
+
+        // CUI sniffer: PASS
         uploaded.push(result);
       } catch (error) {
-        console.error('Failed to upload file:', file.name, error);
+        if (error.cuiBlocked) {
+          toast({
+            title: "Upload Rejected",
+            description: `Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.`,
+            variant: "destructive",
+            duration: 10000,
+          });
+        } else {
+          toast({
+            title: "Upload Failed",
+            description: `"${file.name}" could not be uploaded: ${error.message}`,
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
       }
     }
 
@@ -437,10 +474,19 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                   {/* Organization Knowledge Files Section */}
                   {orgKnowledgeFiles.length > 0 && (
                     <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <FileText className="w-4 h-4 text-green-400" />
-                        <span className="text-white text-sm font-medium">Organization Knowledge</span>
-                        <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-green-400" />
+                          <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                          <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={allOrgFilesSelected ? deselectAllOrgFiles : selectAllOrgFiles}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          {allOrgFilesSelected ? 'Deselect All' : 'Select All'}
+                        </button>
                       </div>
                       <p className="text-blue-200/70 text-xs mb-3">
                         These company-wide files will be used to enhance your matrix generation with organizational context.
@@ -510,10 +556,19 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                 {/* Organization Knowledge Files Section */}
                 {orgKnowledgeFiles.length > 0 && (
                   <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileText className="w-4 h-4 text-green-400" />
-                      <span className="text-white text-sm font-medium">Organization Knowledge</span>
-                      <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-green-400" />
+                        <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                        <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={allOrgFilesSelected ? deselectAllOrgFiles : selectAllOrgFiles}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {allOrgFilesSelected ? 'Deselect All' : 'Select All'}
+                      </button>
                     </div>
                     <p className="text-blue-200/70 text-xs mb-3">
                       These company-wide files will be used to enhance your matrix generation with organizational context.

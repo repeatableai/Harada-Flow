@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -171,6 +172,7 @@ const canPreview = (mimeType) => {
 
 export default function KnowledgeFileManager() {
   const { user, isAdmin, isCompanyAdmin, isSuperAdmin, organization, department } = useAuth();
+  const { toast } = useToast();
 
   const [files, setFiles] = useState({ data: [], pagination: {} });
   const [departments, setDepartments] = useState([]);
@@ -341,18 +343,43 @@ export default function KnowledgeFileManager() {
       // Determine the organization ID to use
       const orgId = isSuperAdmin() ? selectedOrgId : organization?.id;
 
-      await apiClient.knowledgeFiles.upload(
+      const result = await apiClient.knowledgeFiles.upload(
         uploadFile,
         uploadScope,
         uploadScope === 'departments' ? selectedDepts : [],
         uploadDescription,
         uploadScope !== 'self' ? orgId : null // Only send orgId for non-personal files
       );
+
+      // CUI sniffer: WARN
+      if (result.cuiWarning) {
+        setUploadError('Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.');
+        toast({
+          title: "Upload Rejected",
+          description: "Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.",
+          variant: "destructive",
+          duration: 10000,
+        });
+        setIsUploading(false);
+        return;
+      }
+
+      // CUI sniffer: PASS
       setShowUploadDialog(false);
       resetUploadForm();
       loadFiles(1);
     } catch (error) {
-      setUploadError(error.message || 'Failed to upload file');
+      if (error.cuiBlocked) {
+        setUploadError('Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.');
+        toast({
+          title: "Upload Rejected",
+          description: "Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.",
+          variant: "destructive",
+          duration: 10000,
+        });
+      } else {
+        setUploadError(error.message || 'Failed to upload file');
+      }
     } finally {
       setIsUploading(false);
     }

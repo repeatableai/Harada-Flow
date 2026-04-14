@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -102,6 +103,7 @@ const canPreview = (mimeType) => {
 
 export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompanyId = null }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -269,7 +271,7 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
       }
 
       try {
-        await apiClient.knowledgeFiles.upload(
+        const result = await apiClient.knowledgeFiles.upload(
           file,
           actualScope,
           deptIds,
@@ -277,9 +279,33 @@ export default function KnowledgeFilesPanel({ open, onOpenChange, currentCompany
           orgId,
           userIds
         );
+
+        // CUI sniffer: WARN
+        if (result.cuiWarning) {
+          setUploadError('Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.');
+          toast({
+            title: "Upload Rejected",
+            description: "Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.",
+            variant: "destructive",
+            duration: 10000,
+          });
+          continue;
+        }
+
+        // CUI sniffer: PASS — no notification
       } catch (error) {
-        console.error('Failed to upload file:', file.name, error);
-        setUploadError(`Failed to upload ${file.name}`);
+        if (error.cuiBlocked) {
+          setUploadError('Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.');
+          toast({
+            title: "Upload Rejected",
+            description: "Your file was not uploaded. There is a possibility that it violates CUI compliance regulations. Please contact your IT executive or manager to determine acceptance criteria.",
+            variant: "destructive",
+            duration: 10000,
+          });
+        } else {
+          console.error('Failed to upload file:', file.name, error);
+          setUploadError(`Failed to upload ${file.name}`);
+        }
       }
     }
 
