@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2 } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
@@ -34,6 +35,11 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+
+  // Organization knowledge files state (company-wide files from admins)
+  const [orgKnowledgeFiles, setOrgKnowledgeFiles] = useState([]);
+  const [selectedOrgFileIds, setSelectedOrgFileIds] = useState(new Set());
+  const [isLoadingOrgFiles, setIsLoadingOrgFiles] = useState(false);
 
   useEffect(() => {
     // Pre-fill form from user profile and organization data
@@ -67,6 +73,41 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
       setIsPreFilled(hasOrgData);
     }
   }, [currentUser]);
+
+  // Fetch organization knowledge files on mount
+  useEffect(() => {
+    const fetchOrgFiles = async () => {
+      setIsLoadingOrgFiles(true);
+      try {
+        const files = await apiClient.knowledgeFiles.getAvailableContext();
+        setOrgKnowledgeFiles(files || []);
+        // Auto-select all org files by default
+        if (files && files.length > 0) {
+          setSelectedOrgFileIds(new Set(files.map(f => f.id)));
+        }
+      } catch (error) {
+        console.error('Failed to fetch organization knowledge files:', error);
+      }
+      setIsLoadingOrgFiles(false);
+    };
+
+    if (currentUser) {
+      fetchOrgFiles();
+    }
+  }, [currentUser]);
+
+  // Toggle organization knowledge file selection
+  const toggleOrgFile = (fileId) => {
+    setSelectedOrgFileIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  };
 
   // Handle file selection and upload
   const handleFilesSelected = async (files) => {
@@ -102,33 +143,62 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     }
   };
 
+  // Handle mode switching - clear the other mode's data to ensure only one method is used
+  const handleModeSwitch = async (newMode) => {
+    if (newMode === inputMode) return;
+
+    if (newMode === 'form') {
+      // Switching to form mode - delete any uploaded files
+      if (uploadedFiles.length > 0) {
+        for (const file of uploadedFiles) {
+          try {
+            await apiClient.knowledgeFiles.delete(file.id);
+          } catch (error) {
+            console.error('Failed to delete file during mode switch:', error);
+          }
+        }
+        setUploadedFiles([]);
+        toast({
+          title: "Switched to manual entry",
+          description: "Your uploaded files have been removed. Please fill in your role details.",
+        });
+      }
+    } else if (newMode === 'upload') {
+      // Switching to upload mode - clear form data
+      const hadFormData = formData.job_title || formData.industry || formData.company_size;
+      setFormData({
+        job_title: "",
+        industry: "",
+        company_size: "",
+        company_url: ""
+      });
+      setIsPreFilled(false);
+      if (hadFormData) {
+        toast({
+          title: "Switched to document upload",
+          description: "Your form data has been cleared. Upload documents to extract your role details.",
+        });
+      }
+    }
+
+    setInputMode(newMode);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // First, create the company session record
+      // Create the company session record with form data
       const newCompany = await Company.create(formData);
 
-      // Link uploaded files to the new company (non-blocking)
-      if (uploadedFiles.length > 0) {
-        Promise.all(
-          uploadedFiles.map(file =>
-            apiClient.knowledgeFiles.linkToCompany(file.id, newCompany.id).catch(err => {
-              console.error('Failed to link file to company:', file.originalName, err);
-            })
-          )
-        ).catch(err => {
-          console.error('Failed to link files to company:', err);
-        });
-      }
-
-      // Then, update the user's profile with the new job title non-blockingly
+      // Update the user's profile with the new job title non-blockingly
       UserApi.updateMe({ job_title: formData.job_title }).catch(err => {
         console.error("Failed to update user profile:", err);
       });
 
-      onCompanyCreated(newCompany);
+      // Pass company and selected org knowledge file IDs for matrix generation
+      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
     } catch (error) {
       console.error("Error saving company data:", error);
     }
@@ -167,8 +237,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         job_title: extractionResult.job_title,
         industry: extractionResult.industry || 'General',
         company_size: extractionResult.company_size || 'medium',
-        company_url: extractionResult.company_url || '',
-        source_type: 'file_upload'
+        company_url: extractionResult.company_url || null
       });
 
       // Link uploaded files to the new company
@@ -190,7 +259,8 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         description: `Detected: ${extractionResult.job_title} in ${extractionResult.industry}`,
       });
 
-      onCompanyCreated(newCompany);
+      // Pass company and selected org knowledge file IDs for matrix generation
+      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
     } catch (error) {
       console.error("Error extracting role from files:", error);
       toast({
@@ -251,30 +321,33 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           <CardContent>
             {/* Inline Mode Toggle */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-blue-200">How would you like to define your role?</span>
+                <span className="text-xs text-blue-300/70 italic">Choose one method</span>
               </div>
               <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
                 <button
                   type="button"
-                  onClick={() => setInputMode('form')}
+                  onClick={() => handleModeSwitch('form')}
+                  disabled={isUploadingFiles || isSubmitting}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'form'
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
                       : 'text-blue-300 hover:text-white hover:bg-white/10'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <Edit3 className="w-4 h-4" />
                   Fill in Details
                 </button>
                 <button
                   type="button"
-                  onClick={() => setInputMode('upload')}
+                  onClick={() => handleModeSwitch('upload')}
+                  disabled={isUploadingFiles || isSubmitting}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
                     inputMode === 'upload'
                       ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg'
                       : 'text-blue-300 hover:text-white hover:bg-white/10'
-                  }`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <FileUp className="w-4 h-4" />
                   Upload Documents
@@ -361,6 +434,36 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                     </div>
                   </div>
 
+                  {/* Organization Knowledge Files Section */}
+                  {orgKnowledgeFiles.length > 0 && (
+                    <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="w-4 h-4 text-green-400" />
+                        <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                        <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                      </div>
+                      <p className="text-blue-200/70 text-xs mb-3">
+                        These company-wide files will be used to enhance your matrix generation with organizational context.
+                      </p>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {orgKnowledgeFiles.map(file => (
+                          <div key={file.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/10">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                              <span className="text-white text-xs truncate">{file.originalName}</span>
+                              <span className="text-blue-300/50 text-xs flex-shrink-0">({file.scope})</span>
+                            </div>
+                            <Switch
+                              checked={selectedOrgFileIds.has(file.id)}
+                              onCheckedChange={() => toggleOrgFile(file.id)}
+                              className="ml-2"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-6">
                     <Button
                       type="submit"
@@ -400,9 +503,39 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                   onFilesSelected={handleFilesSelected}
                   onRemoveFile={handleRemoveFile}
                   isUploading={isUploadingFiles}
-                  maxFiles={5}
+                  maxFiles={10}
                   disabled={isSubmitting}
                 />
+
+                {/* Organization Knowledge Files Section */}
+                {orgKnowledgeFiles.length > 0 && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <FileText className="w-4 h-4 text-green-400" />
+                      <span className="text-white text-sm font-medium">Organization Knowledge</span>
+                      <span className="text-xs text-blue-300/70">({selectedOrgFileIds.size} of {orgKnowledgeFiles.length} selected)</span>
+                    </div>
+                    <p className="text-blue-200/70 text-xs mb-3">
+                      These company-wide files will be used to enhance your matrix generation with organizational context.
+                    </p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {orgKnowledgeFiles.map(file => (
+                        <div key={file.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/10">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                            <span className="text-white text-xs truncate">{file.originalName}</span>
+                            <span className="text-blue-300/50 text-xs flex-shrink-0">({file.scope})</span>
+                          </div>
+                          <Switch
+                            checked={selectedOrgFileIds.has(file.id)}
+                            onCheckedChange={() => toggleOrgFile(file.id)}
+                            className="ml-2"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <Button

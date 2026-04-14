@@ -4,11 +4,12 @@ import { fileURLToPath } from 'url';
 import prisma from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { logActivity } from './activityLog.service.js';
+import * as storageService from './storage.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Upload directory path
+// Upload directory path (for local fallback)
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // Allowed file types
@@ -200,6 +201,19 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
     },
   });
 
+  // Upload file to Supabase storage (or keep local as fallback)
+  const uploadResult = await storageService.uploadFile(
+    file.filename,
+    file.path, // Multer's temp file path
+    file.mimetype
+  );
+
+  if (!uploadResult.success) {
+    // Rollback database record if storage upload fails
+    await prisma.knowledgeFile.delete({ where: { id: knowledgeFile.id } });
+    throw new AppError(`Failed to upload file to storage: ${uploadResult.error}`, 500);
+  }
+
   // Log file upload activity
   logActivity({
     userId: user.id,
@@ -214,6 +228,7 @@ export async function uploadFile(file, user, scope, departmentIds = [], descript
       fileSize: file.size,
       scope,
       userName: user.name || user.email,
+      storageType: storageService.isSupabaseEnabled() ? 'supabase' : 'local',
     },
   });
 
@@ -418,7 +433,7 @@ export async function getFile(fileId, user) {
 }
 
 /**
- * Get file for download (returns file path and metadata)
+ * Get file for download (returns file buffer/path and metadata)
  */
 export async function downloadFile(fileId, user) {
   const file = await prisma.knowledgeFile.findUnique({
@@ -433,10 +448,23 @@ export async function downloadFile(fileId, user) {
     throw new AppError('You do not have permission to download this file', 403);
   }
 
-  const filePath = path.join(UPLOADS_DIR, file.filename);
+  // Try to get file from Supabase first, then fall back to local
+  let fileBuffer = null;
+  let filePath = null;
 
-  if (!fs.existsSync(filePath)) {
-    throw new AppError('File not found on server', 404);
+  if (storageService.isSupabaseEnabled()) {
+    const downloadResult = await storageService.downloadFile(file.filename);
+    if (downloadResult && downloadResult.buffer) {
+      fileBuffer = downloadResult.buffer;
+    }
+  }
+
+  // Fallback to local storage if Supabase didn't return the file
+  if (!fileBuffer) {
+    filePath = path.join(UPLOADS_DIR, file.filename);
+    if (!fs.existsSync(filePath)) {
+      throw new AppError('File not found on server', 404);
+    }
   }
 
   // Log file access activity
@@ -455,6 +483,7 @@ export async function downloadFile(fileId, user) {
   });
 
   return {
+    buffer: fileBuffer,
     filePath,
     originalName: file.originalName,
     mimeType: file.mimeType,
@@ -477,7 +506,12 @@ export async function deleteFile(fileId, user) {
     throw new AppError('You do not have permission to delete this file', 403);
   }
 
-  // Delete file from filesystem
+  // Delete file from Supabase storage
+  if (storageService.isSupabaseEnabled()) {
+    await storageService.deleteFile(file.filename);
+  }
+
+  // Also delete from local filesystem if exists (handles migration period)
   const filePath = path.join(UPLOADS_DIR, file.filename);
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
@@ -489,6 +523,117 @@ export async function deleteFile(fileId, user) {
   });
 
   return { success: true };
+}
+
+/**
+ * Get organization/company-wide knowledge files available as additional context
+ * Returns files with scope: company, departments (user's dept), or system
+ * These are files uploaded by admins that can enhance matrix generation
+ */
+export async function getAvailableContextFiles(user) {
+  const whereClause = {
+    OR: [
+      // System-wide files (visible to everyone)
+      { scope: 'system' },
+      // Company-wide files in user's organization
+      ...(user.organizationId ? [{
+        AND: [
+          { organizationId: user.organizationId },
+          { scope: 'company' },
+        ],
+      }] : []),
+      // Department files for user's department
+      ...(user.departmentId ? [{
+        AND: [
+          { scope: 'departments' },
+          { departmentIds: { has: user.departmentId } },
+        ],
+      }] : []),
+    ],
+    // Exclude user's own personal files - those are handled separately
+    NOT: {
+      AND: [
+        { uploaderId: user.id },
+        { scope: 'self' },
+      ],
+    },
+  };
+
+  const files = await prisma.knowledgeFile.findMany({
+    where: whereClause,
+    include: {
+      uploader: {
+        select: { id: true, name: true, email: true },
+      },
+      organization: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return files.map(formatFileResponse);
+}
+
+/**
+ * Get files by IDs for LLM context (with access check)
+ * @param {string[]} fileIds - Array of file IDs
+ * @param {object} user - User object for access check
+ * @returns {Promise<Array>} - Array of accessible file records
+ */
+export async function getFilesByIds(fileIds, user) {
+  if (!fileIds || fileIds.length === 0) return [];
+
+  const files = await prisma.knowledgeFile.findMany({
+    where: { id: { in: fileIds } },
+    select: {
+      id: true,
+      filename: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      scope: true,
+      uploaderId: true,
+      organizationId: true,
+      departmentIds: true,
+      sharedUserIds: true,
+    },
+  });
+
+  // Filter to only files the user can access
+  const ROLE_LEVELS = {
+    USER: 1,
+    DEPARTMENT_ADMIN: 2,
+    COMPANY_ADMIN: 3,
+    ADMIN: 3,
+    SUPER_ADMIN: 4,
+  };
+
+  const roleLevel = ROLE_LEVELS[user.role] || 0;
+
+  return files.filter(file => {
+    // Super admin can access everything
+    if (roleLevel >= ROLE_LEVELS.SUPER_ADMIN) return true;
+
+    // Company admin can access all files in their org
+    if (roleLevel >= ROLE_LEVELS.COMPANY_ADMIN && file.organizationId === user.organizationId) return true;
+
+    // Check scope-based access
+    switch (file.scope) {
+      case 'self':
+        return file.uploaderId === user.id;
+      case 'users':
+        return file.sharedUserIds?.includes(user.id) || file.uploaderId === user.id;
+      case 'departments':
+        return file.departmentIds?.includes(user.departmentId) || file.uploaderId === user.id;
+      case 'company':
+        return file.organizationId === user.organizationId;
+      case 'system':
+        return true;
+      default:
+        return file.uploaderId === user.id;
+    }
+  });
 }
 
 /**

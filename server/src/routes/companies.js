@@ -9,14 +9,18 @@ const router = Router();
 router.use(authenticate);
 
 // Validation schemas
+// Accept any string or null/undefined for company_url - don't validate URL format
+// since LLM extraction may return non-URL values like "N/A" or partial URLs
+const urlOrEmpty = z.string().optional().nullable();
+
 const createCompanySchema = z.object({
   job_title: z.string().min(1).optional(),
   jobTitle: z.string().min(1).optional(),
   industry: z.string().min(1),
   company_size: z.string().min(1).optional(),
   companySize: z.string().min(1).optional(),
-  company_url: z.string().url().optional().nullable(),
-  companyUrl: z.string().url().optional().nullable(),
+  company_url: urlOrEmpty,
+  companyUrl: urlOrEmpty,
 }).refine(data => data.job_title || data.jobTitle, {
   message: 'job_title or jobTitle is required',
 }).refine(data => data.company_size || data.companySize, {
@@ -29,8 +33,8 @@ const updateCompanySchema = z.object({
   industry: z.string().min(1).optional(),
   company_size: z.string().min(1).optional(),
   companySize: z.string().min(1).optional(),
-  company_url: z.string().url().optional().nullable(),
-  companyUrl: z.string().url().optional().nullable(),
+  company_url: urlOrEmpty,
+  companyUrl: urlOrEmpty,
   productivity_matrix: z.any().optional(),
   productivityMatrix: z.any().optional(),
   performance_matrix: z.any().optional(),

@@ -3,10 +3,17 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const router = express.Router();
-const prisma = new PrismaClient();
+
+// Seed endpoint is disabled in production - export empty router
+if (process.env.NODE_ENV === 'production') {
+  // No routes registered - all requests to /api/seed/* return 404
+  console.log('Seed routes disabled in production');
+}
+
+const prisma = process.env.NODE_ENV !== 'production' ? new PrismaClient() : null;
 const SALT_ROUNDS = 12;
 
-// One-time secret key for seeding (change this before deploying)
+// One-time secret key for seeding (only used in development)
 const SEED_SECRET = process.env.SEED_SECRET || 'harada-seed-2024';
 
 // Helper function to generate dates in the past
@@ -161,10 +168,11 @@ const samplePrompts = [
 ];
 
 /**
- * One-time seed endpoint
- * Call this endpoint once to populate production database
+ * One-time seed endpoint (DISABLED IN PRODUCTION)
+ * Call this endpoint once to populate development database
  * GET /api/seed/business-data?secret=YOUR_SECRET
  */
+if (process.env.NODE_ENV !== 'production') {
 router.get('/business-data', async (req, res) => {
   try {
     const { secret } = req.query;
@@ -445,5 +453,6 @@ router.get('/business-data', async (req, res) => {
     res.status(500).json({ error: 'Seed failed', details: error.message });
   }
 });
+} // End of production check
 
 export default router;

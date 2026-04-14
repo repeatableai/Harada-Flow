@@ -3,7 +3,7 @@ import config from '../config.js';
 import { scrapeCompanyWebsite } from './scraper.service.js';
 import { createTimeStudy } from './timeStudy.service.js';
 import { extractTextFromFiles } from './fileExtractor.service.js';
-import { getFilesForSession } from './knowledgeFile.service.js';
+import { getFilesForSession, getFilesByIds } from './knowledgeFile.service.js';
 import prisma from '../db.js';
 
 const anthropic = new Anthropic({
@@ -16,6 +16,9 @@ export async function invokeLLM({
   response_json_schema,
   add_context_from_internet,
   company_url,
+  // Additional knowledge files as context
+  knowledgeFileIds,
+  user,
   // Time study tracking params
   operationType,
   operationName,
@@ -66,20 +69,42 @@ export async function invokeLLM({
           const fileContent = await extractTextFromFiles(sessionFiles);
 
           if (fileContent && fileContent.trim().length > 0) {
-            const knowledgeContext = `[KNOWLEDGE FILES CONTEXT]\n${fileContent}\n[END KNOWLEDGE FILES CONTEXT]`;
+            const knowledgeContext = `[SESSION KNOWLEDGE FILES]\n${fileContent}\n[END SESSION KNOWLEDGE FILES]`;
             enrichedPrompt = `${knowledgeContext}\n\n${enrichedPrompt}`;
-            console.log(`Added ${fileContent.length} chars of knowledge file context to prompt`);
+            console.log(`Added ${fileContent.length} chars of session file context to prompt`);
           }
         }
       } catch (fileError) {
-        console.error('Error loading knowledge files:', fileError);
+        console.error('Error loading session knowledge files:', fileError);
         // Continue without file context
       }
     }
 
-    const message = await anthropic.messages.create({
+    // Include additional knowledge files selected by the user (organization/company-wide files)
+    if (knowledgeFileIds && knowledgeFileIds.length > 0 && user) {
+      try {
+        const additionalFiles = await getFilesByIds(knowledgeFileIds, user);
+        if (additionalFiles && additionalFiles.length > 0) {
+          console.log(`Found ${additionalFiles.length} additional knowledge files for context`);
+          const fileContent = await extractTextFromFiles(additionalFiles);
+
+          if (fileContent && fileContent.trim().length > 0) {
+            const orgContext = `[ORGANIZATION KNOWLEDGE FILES]\n${fileContent}\n[END ORGANIZATION KNOWLEDGE FILES]`;
+            enrichedPrompt = `${orgContext}\n\n${enrichedPrompt}`;
+            console.log(`Added ${fileContent.length} chars of organization file context to prompt`);
+          }
+        }
+      } catch (fileError) {
+        console.error('Error loading additional knowledge files:', fileError);
+        // Continue without additional file context
+      }
+    }
+
+    // Use streaming to prevent connection timeouts on large responses
+    console.log('Starting streaming request to Anthropic...');
+    const stream = anthropic.messages.stream({
       model: config.anthropic.model,
-      max_tokens: 8192,
+      max_tokens: 32768,
       system: systemMessage,
       messages: [
         {
@@ -89,8 +114,22 @@ export async function invokeLLM({
       ],
     });
 
-    // Extract the text content from the response
-    const content = message.content[0]?.text;
+    // Accumulate streamed text chunks
+    let content = '';
+    let chunkCount = 0;
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.text) {
+        content += event.delta.text;
+        chunkCount++;
+        // Log progress every 100 chunks
+        if (chunkCount % 100 === 0) {
+          console.log(`Streaming progress: ${chunkCount} chunks, ${content.length} chars received`);
+        }
+      }
+    }
+
+    console.log(`Streaming complete: ${chunkCount} total chunks, ${content.length} total chars`);
 
     if (!content) {
       throw new Error('No response content from Anthropic');

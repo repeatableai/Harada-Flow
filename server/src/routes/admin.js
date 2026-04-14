@@ -134,7 +134,7 @@ router.patch('/users/:id/status', requireDepartmentAdmin, async (req, res, next)
   }
 });
 
-// GET /api/admin/companies - List all companies
+// GET /api/admin/companies - List all companies (scoped by caller's role)
 router.get('/companies', requireDepartmentAdmin, async (req, res, next) => {
   try {
     const { search, userId, page, limit, sort } = req.query;
@@ -144,7 +144,7 @@ router.get('/companies', requireDepartmentAdmin, async (req, res, next) => {
       page,
       limit,
       sort,
-    });
+    }, req.user);
     res.json(result);
   } catch (error) {
     next(error);
@@ -164,17 +164,17 @@ router.get('/companies/:id', requireDepartmentAdmin, async (req, res, next) => {
   }
 });
 
-// GET /api/admin/stats - Dashboard statistics
+// GET /api/admin/stats - Dashboard statistics (scoped by caller's role)
 router.get('/stats', requireDepartmentAdmin, async (req, res, next) => {
   try {
-    const stats = await adminService.getStats();
+    const stats = await adminService.getStats(req.user);
     res.json(stats);
   } catch (error) {
     next(error);
   }
 });
 
-// GET /api/admin/saved-prompts - List all saved prompts
+// GET /api/admin/saved-prompts - List all saved prompts (scoped by caller's role)
 router.get('/saved-prompts', requireDepartmentAdmin, async (req, res, next) => {
   try {
     const { search, deliverableType, companyId, userId, page, limit, sort } = req.query;
@@ -186,17 +186,17 @@ router.get('/saved-prompts', requireDepartmentAdmin, async (req, res, next) => {
       page,
       limit,
       sort,
-    });
+    }, req.user);
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-// GET /api/admin/saved-prompts/stats - Saved prompts statistics
+// GET /api/admin/saved-prompts/stats - Saved prompts statistics (scoped by caller's role)
 router.get('/saved-prompts/stats', requireDepartmentAdmin, async (req, res, next) => {
   try {
-    const stats = await adminService.getSavedPromptStats();
+    const stats = await adminService.getSavedPromptStats(req.user);
     res.json(stats);
   } catch (error) {
     next(error);

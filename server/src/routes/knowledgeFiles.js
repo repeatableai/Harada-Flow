@@ -118,6 +118,20 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
 });
 
 /**
+ * GET /api/knowledge-files/available-context
+ * Get organization/company-wide knowledge files available as additional context
+ * Returns files with scope: company, departments (user's dept), or system
+ */
+router.get('/available-context', async (req, res, next) => {
+  try {
+    const files = await knowledgeFileService.getAvailableContextFiles(req.user);
+    res.json(files);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/knowledge-files
  * List accessible files
  */
@@ -157,14 +171,21 @@ router.get('/:id', async (req, res, next) => {
  */
 router.get('/:id/download', async (req, res, next) => {
   try {
-    const { filePath, originalName, mimeType } = await knowledgeFileService.downloadFile(
+    const { buffer, filePath, originalName, mimeType } = await knowledgeFileService.downloadFile(
       req.params.id,
       req.user
     );
 
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
-    res.sendFile(filePath);
+
+    if (buffer) {
+      // Send buffer directly (from Supabase)
+      res.send(buffer);
+    } else {
+      // Send from local file path
+      res.sendFile(filePath);
+    }
   } catch (error) {
     next(error);
   }

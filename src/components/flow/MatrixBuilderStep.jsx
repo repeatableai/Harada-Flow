@@ -14,7 +14,7 @@ import MatrixDisplay from "../matrix/MatrixDisplay";
 import EditableMatrix from "../matrix/EditableMatrix";
 import LoadingOverlay from "../common/LoadingOverlay";
 
-export default function MatrixBuilderStep({ company, onMatricesFinalized, onStartOver }) {
+export default function MatrixBuilderStep({ company, knowledgeFileIds = [], onMatricesFinalized, onStartOver }) {
   const { toast } = useToast();
   const [currentCompany, setCurrentCompany] = useState(company);
   const [productivityMatrix, setProductivityMatrix] = useState(company?.productivity_matrix || null);
@@ -70,6 +70,8 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
         add_context_from_internet: !!currentCompany.company_url,
         company_url: currentCompany.company_url,
         response_json_schema: productivitySchema,
+        // Additional knowledge files as context
+        knowledgeFileIds,
         // Time study tracking
         operationType: 'productivity_matrix',
         operationName: `${currentCompany.job_title} - ${currentCompany.industry}`,
@@ -133,6 +135,8 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
         add_context_from_internet: !!currentCompany.company_url,
         company_url: currentCompany.company_url,
         response_json_schema: performanceSchema,
+        // Additional knowledge files as context
+        knowledgeFileIds,
         // Time study tracking
         operationType: 'performance_matrix',
         operationName: `${currentCompany.job_title} - ${currentCompany.industry}`,

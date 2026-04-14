@@ -9,8 +9,12 @@ export default {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
+    secret: process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
+      ? (() => { throw new Error('JWT_SECRET is required in production'); })()
+      : 'dev-secret-change-in-production'),
+    refreshSecret: process.env.JWT_REFRESH_SECRET || (process.env.NODE_ENV === 'production'
+      ? (() => { throw new Error('JWT_REFRESH_SECRET is required in production'); })()
+      : 'dev-refresh-secret-change-in-production'),
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
     refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   },
@@ -30,6 +34,12 @@ export default {
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
     model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
+  },
+
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    serviceKey: process.env.SUPABASE_SERVICE_KEY, // Service role key for server-side operations
+    storageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'knowledge-files',
   },
 
   // Session durations

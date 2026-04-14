@@ -215,7 +215,7 @@ export async function getUser(userId, callerUser = null) {
   };
 }
 
-export async function listAllCompanies(query = {}) {
+export async function listAllCompanies(query = {}, callerUser = null) {
   const { search, userId, page = 1, limit = 20, sort = '-createdAt' } = query;
 
   const orderBy = sort.startsWith('-')
@@ -236,6 +236,23 @@ export async function listAllCompanies(query = {}) {
       { industry: { contains: search, mode: 'insensitive' } },
       { createdBy: { contains: search, mode: 'insensitive' } },
     ];
+  }
+
+  // Apply organization scoping based on caller's role
+  if (callerUser && callerUser.role !== 'SUPER_ADMIN') {
+    if (['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
+      // Company admins see companies created by users in their organization
+      where.user = { organizationId: callerUser.organizationId };
+    } else if (callerUser.role === 'DEPARTMENT_ADMIN') {
+      // Department admins see companies created by users in their department
+      where.user = {
+        organizationId: callerUser.organizationId,
+        departmentId: callerUser.departmentId,
+      };
+    } else {
+      // Regular users see nothing
+      where.id = 'impossible-id-no-access';
+    }
   }
 
   const [companies, total] = await Promise.all([
@@ -295,7 +312,31 @@ export async function getCompanyAdmin(companyId) {
   };
 }
 
-export async function getStats() {
+export async function getStats(callerUser = null) {
+  // Build organization/department scope for users
+  let userWhere = {};
+  let companyWhere = {};
+
+  if (callerUser && callerUser.role !== 'SUPER_ADMIN') {
+    if (['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
+      userWhere.organizationId = callerUser.organizationId;
+      companyWhere.user = { organizationId: callerUser.organizationId };
+    } else if (callerUser.role === 'DEPARTMENT_ADMIN') {
+      userWhere.organizationId = callerUser.organizationId;
+      userWhere.departmentId = callerUser.departmentId;
+      companyWhere.user = {
+        organizationId: callerUser.organizationId,
+        departmentId: callerUser.departmentId,
+      };
+    } else {
+      // Regular users see nothing
+      userWhere.id = 'impossible-id-no-access';
+      companyWhere.id = 'impossible-id-no-access';
+    }
+  }
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
   const [
     totalUsers,
     totalCompanies,
@@ -303,24 +344,23 @@ export async function getStats() {
     recentCompanies,
     usersByRole,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.company.count(),
+    prisma.user.count({ where: userWhere }),
+    prisma.company.count({ where: companyWhere }),
     prisma.user.count({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
-        },
+        ...userWhere,
+        createdAt: { gte: sevenDaysAgo },
       },
     }),
     prisma.company.count({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        },
+        ...companyWhere,
+        createdAt: { gte: sevenDaysAgo },
       },
     }),
     prisma.user.groupBy({
       by: ['role'],
+      where: userWhere,
       _count: true,
     }),
   ]);
@@ -337,7 +377,7 @@ export async function getStats() {
   };
 }
 
-export async function listAllSavedPrompts(query = {}) {
+export async function listAllSavedPrompts(query = {}, callerUser = null) {
   const { search, deliverableType, companyId, userId, page = 1, limit = 20, sort = '-createdAt' } = query;
 
   // Handle sort field mapping
@@ -372,8 +412,32 @@ export async function listAllSavedPrompts(query = {}) {
   // Filter by user ID (through the company relation)
   if (userId) {
     where.company = {
+      ...(where.company || {}),
       userId: userId,
     };
+  }
+
+  // Apply organization scoping based on caller's role
+  if (callerUser && callerUser.role !== 'SUPER_ADMIN') {
+    if (['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
+      // Company admins see saved prompts from their organization
+      where.company = {
+        ...(where.company || {}),
+        user: { organizationId: callerUser.organizationId },
+      };
+    } else if (callerUser.role === 'DEPARTMENT_ADMIN') {
+      // Department admins see saved prompts from their department
+      where.company = {
+        ...(where.company || {}),
+        user: {
+          organizationId: callerUser.organizationId,
+          departmentId: callerUser.departmentId,
+        },
+      };
+    } else {
+      // Regular users see nothing
+      where.id = 'impossible-id-no-access';
+    }
   }
 
   if (search) {
@@ -438,27 +502,49 @@ export async function listAllSavedPrompts(query = {}) {
   };
 }
 
-export async function getSavedPromptStats() {
+export async function getSavedPromptStats(callerUser = null) {
+  // Build organization scope for saved prompts (through company -> user)
+  let where = {};
+
+  if (callerUser && callerUser.role !== 'SUPER_ADMIN') {
+    if (['COMPANY_ADMIN', 'ADMIN'].includes(callerUser.role)) {
+      where.company = { user: { organizationId: callerUser.organizationId } };
+    } else if (callerUser.role === 'DEPARTMENT_ADMIN') {
+      where.company = {
+        user: {
+          organizationId: callerUser.organizationId,
+          departmentId: callerUser.departmentId,
+        },
+      };
+    } else {
+      // Regular users see nothing
+      where.id = 'impossible-id-no-access';
+    }
+  }
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
   const [
     total,
     byType,
     recentCount,
     customCount,
   ] = await Promise.all([
-    prisma.savedPrompt.count(),
+    prisma.savedPrompt.count({ where }),
     prisma.savedPrompt.groupBy({
       by: ['deliverableType'],
+      where,
       _count: true,
     }),
     prisma.savedPrompt.count({
       where: {
-        createdAt: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        },
+        ...where,
+        createdAt: { gte: sevenDaysAgo },
       },
     }),
     prisma.savedPrompt.count({
       where: {
+        ...where,
         isCustom: true,
       },
     }),

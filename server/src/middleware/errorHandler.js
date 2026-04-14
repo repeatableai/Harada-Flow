@@ -3,8 +3,10 @@ export function errorHandler(err, req, res, next) {
 
   // Zod validation errors
   if (err.name === 'ZodError') {
+    // Format Zod errors into a readable message
+    const messages = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
     return res.status(400).json({
-      error: 'Validation error',
+      error: `Validation error: ${messages}`,
       details: err.errors,
     });
   }

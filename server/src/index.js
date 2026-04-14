@@ -4,7 +4,23 @@ import './env.js';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import config from './config.js';
+
+// Create uploads directory if it doesn't exist (local fallback)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Created uploads directory:', uploadsDir);
+}
+
+// Initialize Supabase storage bucket
+import { ensureBucketExists } from './services/storage.service.js';
+ensureBucketExists().catch(err => console.error('Failed to ensure storage bucket exists:', err));
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import companiesRoutes from './routes/companies.js';
