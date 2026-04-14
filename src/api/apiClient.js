@@ -609,14 +609,31 @@ class ApiClient {
         throw new Error('Not authenticated');
       }
 
+      const data = await response.json().catch(() => ({ error: 'Upload failed' }));
+
+      // CUI sniffer: BLOCK (403) — file was rejected
+      if (response.status === 403 && data.blocked) {
+        const err = new Error(data.reason || 'File blocked by CUI scan');
+        err.status = 403;
+        err.cuiBlocked = true;
+        err.findings = data.findings || [];
+        err.scanId = data.scan_id;
+        err.action = data.action;
+        throw err;
+      }
+
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Upload failed' }));
-        const err = new Error(error.error || 'Upload failed');
+        const err = new Error(data.error || 'Upload failed');
         err.status = response.status;
         throw err;
       }
 
-      return response.json();
+      // CUI sniffer: WARN (200) — needs confirmation
+      if (data.warning && data.confirm_required) {
+        data.cuiWarning = true;
+      }
+
+      return data;
     },
 
     list: async (params = {}) => {

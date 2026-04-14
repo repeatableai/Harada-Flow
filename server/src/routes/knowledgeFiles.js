@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { authenticate } from '../middleware/auth.js';
+import { cuiSniffer } from '../middleware/cuiSniffer.js';
 import * as knowledgeFileService from '../services/knowledgeFile.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,18 +12,8 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../../uploads'));
-  },
-  filename: function (req, file, cb) {
-    // Generate UUID-based filename to avoid collisions
-    const uniqueId = crypto.randomUUID();
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueId}${ext}`);
-  },
-});
+// Use memoryStorage so files stay in buffer for CUI scanning before persistence
+const storage = multer.memoryStorage();
 
 // File filter for allowed types
 const fileFilter = (req, file, cb) => {
@@ -61,7 +52,7 @@ router.use(authenticate);
  * POST /api/knowledge-files/upload
  * Upload a file
  */
-router.post('/upload', upload.single('file'), async (req, res, next) => {
+router.post('/upload', upload.single('file'), cuiSniffer, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -104,14 +95,9 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
 
     res.status(201).json(file);
   } catch (error) {
-    // If there was an error after file upload, clean up the file
+    // Discard buffer on error — memoryStorage, no disk cleanup needed
     if (req.file) {
-      const fs = await import('fs');
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch {
-        // Ignore cleanup errors
-      }
+      req.file.buffer = null;
     }
     next(error);
   }

@@ -44,6 +44,7 @@ model User {
   timeStudies          TimeStudy[]
   knowledgeFiles       KnowledgeFile[]
   passwordResetTokens  PasswordResetToken[]
+  cuiScanLogs          CuiScanLog[]
 
   @@index([email])
   @@index([role])
@@ -185,6 +186,7 @@ model Organization {
   users          User[]
   companies      Company[]
   knowledgeFiles KnowledgeFile[]
+  cuiScanLogs    CuiScanLog[]
 
   @@index([slug])
   @@map("organizations")
@@ -295,4 +297,29 @@ model ActivityLog {
   @@index([activityType])
   @@index([createdAt(sort: Desc)])
   @@map("activity_logs")
+}
+
+model CuiScanLog {
+  id              String    @id @default(uuid())
+  scanId          String    @unique @map("scan_id")
+  organizationId  String?   @map("organization_id")
+  userId          String    @map("user_id")
+  filename        String?
+  fileType        String?   @map("file_type")
+  fileSizeBytes   Int?      @map("file_size_bytes")
+  verdict         String    // BLOCK, WARN, PASS
+  findingsCount   Int       @default(0) @map("findings_count")
+  findingsSummary Json?     @map("findings_summary")
+  userConfirmed   Boolean   @default(false) @map("user_confirmed")
+  confirmedAt     DateTime? @map("confirmed_at")
+  ipAddress       String?   @map("ip_address")
+  scannedAt       DateTime  @default(now()) @map("scanned_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([verdict])
+  @@index([scannedAt(sort: Desc)])
+  @@map("cui_scan_audit_log")
 }

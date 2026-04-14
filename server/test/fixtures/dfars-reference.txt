@@ -1,0 +1,2 @@
+Per DFARS 252.204-7012, the contractor shall provide adequate security on all covered contractor information systems.
+This requirement applies to all subcontractors.
