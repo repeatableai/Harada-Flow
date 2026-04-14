@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.js';
 import * as authService from '../services/auth.service.js';
+import * as erasureService from '../services/erasure.service.js';
 import config from '../config.js';
 
 const router = Router();
@@ -48,6 +49,11 @@ const validateTokenSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
+const eraseAccountSchema = z.object({
+  confirmationPhrase: z.string().min(1, 'Confirmation phrase is required'),
+  password: z.string().optional(),
 });
 
 const accessRequestSchema = z.object({
@@ -300,6 +306,32 @@ router.delete('/sessions', authenticate, async (req, res, next) => {
 router.delete('/sessions/:id', authenticate, async (req, res, next) => {
   try {
     const result = await authService.logoutSession(req.user.id, req.params.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// === GDPR Right to Erasure Endpoints ===
+
+// GET /api/auth/account/data-summary - Get summary of all stored personal data
+router.get('/account/data-summary', authenticate, async (req, res, next) => {
+  try {
+    const summary = await erasureService.getDataSummary(req.user.id);
+    res.json(summary);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/auth/account - Erase all personal data (GDPR Right to Erasure)
+router.delete('/account', authenticate, async (req, res, next) => {
+  try {
+    const { confirmationPhrase, password } = eraseAccountSchema.parse(req.body);
+    const result = await erasureService.eraseUserData(req.user.id, confirmationPhrase, password);
+
+    // Clear the refresh token cookie since the account no longer exists
+    res.clearCookie('refreshToken', { path: '/' });
     res.json(result);
   } catch (error) {
     next(error);

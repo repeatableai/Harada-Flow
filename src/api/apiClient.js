@@ -217,6 +217,18 @@ class ApiClient {
         method: 'DELETE',
       });
     },
+
+    // GDPR Right to Erasure
+    getDataSummary: async () => {
+      return this.request('/auth/account/data-summary');
+    },
+
+    eraseAccount: async (confirmationPhrase, password) => {
+      return this.request('/auth/account', {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmationPhrase, password }),
+      });
+    },
   };
 
   // Entity methods - compatible with Base44 interface
@@ -400,6 +412,13 @@ class ApiClient {
 
     deleteUser: async (userId) => {
       return this.request(`/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+    },
+
+    // GDPR Right to Erasure (admin-initiated)
+    eraseUserData: async (userId) => {
+      return this.request(`/admin/users/${userId}/erase`, {
         method: 'DELETE',
       });
     },

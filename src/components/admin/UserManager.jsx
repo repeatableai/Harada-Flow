@@ -471,12 +471,14 @@ export default function UserManager() {
     setIsSubmitting(true);
     setError('');
     try {
-      await apiClient.admin.deleteUser(selectedUser.id);
+      // Use GDPR-compliant erasure endpoint instead of basic delete
+      // This deletes stored files, anonymizes activity logs, and creates an audit trail
+      await apiClient.admin.eraseUserData(selectedUser.id);
       setShowDeleteDialog(false);
       setSelectedUser(null);
       loadUsers(1, searchQuery, sortBy, roleFilter, orgFilter, deptFilter, statusFilter);
     } catch (error) {
-      setError(error.message || 'Failed to delete user');
+      setError(error.message || 'Failed to erase user data');
     } finally {
       setIsSubmitting(false);
     }
@@ -779,14 +781,14 @@ export default function UserManager() {
                               {usr.isActive !== false ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </Button>
                           )}
-                          {/* Delete Button */}
+                          {/* GDPR Erase Button */}
                           {canManage(usr.role) && usr.id !== user.id && (
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => openDeleteDialog(usr)}
                               className="text-red-300 hover:text-white hover:bg-red-500/10"
-                              title="Delete User"
+                              title="Erase User Data (GDPR)"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -1448,17 +1450,31 @@ export default function UserManager() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete User Confirmation */}
+      {/* GDPR Data Erasure Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="bg-slate-900 border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-400" />
-              Delete User
+              Erase User Data (GDPR)
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-blue-300">
-              Are you sure you want to delete <span className="text-white font-medium">{selectedUser?.name || selectedUser?.email}</span>?
-              This will permanently remove their account and all associated data. This action cannot be undone.
+            <AlertDialogDescription asChild>
+              <div className="text-blue-300 space-y-3">
+                <p>
+                  Are you sure you want to erase all data for <span className="text-white font-medium">{selectedUser?.name || selectedUser?.email}</span>?
+                </p>
+                <div className="text-sm space-y-1">
+                  <p>This GDPR-compliant erasure will permanently:</p>
+                  <ul className="list-disc ml-4 text-blue-300/80">
+                    <li>Delete their account and profile</li>
+                    <li>Delete all role sessions and deliverables</li>
+                    <li>Delete all uploaded files from storage</li>
+                    <li>Delete all time study records</li>
+                    <li>Anonymize their activity logs (retained for compliance)</li>
+                  </ul>
+                </div>
+                <p className="text-red-300/80 text-sm">This action cannot be undone.</p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error && (
@@ -1475,7 +1491,7 @@ export default function UserManager() {
               disabled={isSubmitting}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete User'}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Erase All Data'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
