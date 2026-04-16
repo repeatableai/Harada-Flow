@@ -705,8 +705,6 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
             productivityMatrix={productivity_matrix}
             performanceMatrix={performance_matrix}
             onSelect={(deliverable) => handleDeliverableSelect(deliverable, false)}
-            onEscalate={(deliverable) => handleDeliverableSelect(deliverable, true)}
-            showEscalate={resolvedSessionMode === 'Working'}
           />
         </motion.div>
       )}
