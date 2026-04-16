@@ -260,28 +260,7 @@ router.post('/executive', async (req, res, next) => {
       throw new AppError('Company not found or access denied', 404);
     }
 
-    // Pre-check: verify required files
-    const missingFiles = [];
-
-    if (company.dossierStatus === 'pending') {
-      missingFiles.push('Company Dossier (complete Session 00 first)');
-    }
-
-    // Check for knowledge files
-    const knowledgeFiles = await prisma.knowledgeFile.findMany({
-      where: { uploaderId: req.user.id },
-      select: { originalName: true },
-    });
-
-    const fileNames = knowledgeFiles.map(f => f.originalName.toLowerCase());
-    if (!fileNames.some(f => f.includes('master_spec') || f.includes('dce_master'))) {
-      missingFiles.push('DCE_Master_Spec_v2_0.md');
-    }
-
-    if (missingFiles.length > 0) {
-      return res.json({ status: 'blocked', missingFiles });
-    }
-
+    // Pre-flight is informational only — never blocks
     // Load Block A and Block B from disk
     const blocksDir = path.resolve(__dirname, '../../../src/prompts/ExecutiveDCE_Blocks');
     const blocks = [];
