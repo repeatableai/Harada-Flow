@@ -267,8 +267,8 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
             <p className="text-blue-200/60 text-xs">
               Paste this dossier into your Claude session first — it provides the company context for everything that follows.
             </p>
-            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap font-mono">
-              {sessionZeroDossier.substring(0, 500)}{sessionZeroDossier.length > 500 ? '...' : ''}
+            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
+              {sessionZeroDossier}
             </pre>
           </CardContent>
         </Card>
@@ -303,8 +303,8 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
                     )}
                   </Button>
                 </div>
-                <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap font-mono">
-                  {block.content.substring(0, 400)}{block.content.length > 400 ? '...' : ''}
+                <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
+                  {block.content}
                 </pre>
               </CardContent>
             </Card>

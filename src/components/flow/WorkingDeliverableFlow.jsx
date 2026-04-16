@@ -195,8 +195,8 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
             <p className="text-blue-200/60 text-xs">
               Paste this dossier into your Claude session first — it provides the company context for all subsequent prompts.
             </p>
-            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap font-mono">
-              {sessionZeroDossier.substring(0, 500)}{sessionZeroDossier.length > 500 ? '...' : ''}
+            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
+              {sessionZeroDossier}
             </pre>
           </CardContent>
         </Card>
@@ -246,8 +246,8 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
             )}
 
             {/* Content preview */}
-            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap font-mono">
-              {chunk.content.substring(0, 500)}{chunk.content.length > 500 ? '...' : ''}
+            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
+              {chunk.content}
             </pre>
 
             {/* Complete checkbox */}
