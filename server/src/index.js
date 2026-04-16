@@ -35,6 +35,8 @@ import activityRoutes from './routes/activity.js';
 import cuiScanRoutes from './routes/cuiScan.js';
 import dossierRoutes from './routes/dossier.js';
 import deliverableRoutes from './routes/deliverable.js';
+import acdRoutes from './routes/acd.js';
+import sessionCloseRoutes from './routes/sessionClose.js';
 import seedRoutes from './routes/seed.js';
 
 const app = express();
@@ -80,6 +82,12 @@ app.use('/api/dossier', dossierRoutes);
 
 // Deliverable generation routes (Working + Executive modes)
 app.use('/api/deliverable', deliverableRoutes);
+
+// ACD generation routes
+app.use('/api/acd', acdRoutes);
+
+// Session close protocol routes
+app.use('/api/session', sessionCloseRoutes);
 
 // Seed routes (for initial data population)
 app.use('/api/seed', seedRoutes);

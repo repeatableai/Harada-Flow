@@ -101,6 +101,8 @@ model Company {
   savedPrompts       SavedPrompt[]
   timeStudies        TimeStudy[]
   knowledgeFiles     KnowledgeFile[]
+  artifactRegistry   ArtifactRegistry[]
+  sessionCloseRecords SessionCloseRecord[]
 
   @@index([userId])
   @@index([createdBy])
@@ -332,4 +334,37 @@ model CuiScanLog {
   @@index([verdict])
   @@index([scannedAt(sort: Desc)])
   @@map("cui_scan_audit_log")
+}
+
+model ArtifactRegistry {
+  id             String   @id @default(uuid())
+  companyId      String   @map("company_id")
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  artifactNumber Int      @map("artifact_number")
+  name           String
+  type           String   // HTML, XLSX, DOCX, PDF, MD
+  mode           String   // 'Executive' | 'Working'
+  acdStatus      String   @default("N/A") @map("acd_status")  // N/A, Required, Pending, Complete, Declined
+  sessionNumber  Int      @map("session_number")
+  status         String   @default("Generated")  // Generated, Published, Complete
+  publishedUrl   String?  @map("published_url")
+  acdUrl         String?  @map("acd_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@index([mode])
+  @@map("artifact_registry")
+}
+
+model SessionCloseRecord {
+  id             String   @id @default(uuid())
+  companyId      String   @map("company_id")
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sessionNumber  Int      @map("session_number")
+  outputMarkdown String   @map("output_markdown") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@map("session_close_records")
 }
