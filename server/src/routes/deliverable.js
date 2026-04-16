@@ -116,35 +116,45 @@ Generate the dynamic chunk sequence now.`;
       if (block.type === 'text') fullText += block.text;
     }
 
-    // Parse chunks by splitting on "### Chunk [N] of [TOTAL]" headers
-    const chunkRegex = /### Chunk (\d+) of (\d+)\s*[—–-]\s*(.+)/g;
+    // Parse chunks — flexible regex to handle Claude's varied header formats:
+    // "### Chunk 1 of 5 — Purpose", "### CHUNK PROMPT 1:", "## Chunk 1/5: Purpose",
+    // "### Chunk 1 of 5", "**Chunk 1 of 5**", etc.
+    const chunkRegex = /(?:^|\n)\s*(?:#{2,3}\s*)?(?:\*\*)?chunk\s*(?:prompt\s*)?(\d+)(?:\s*(?:of|\/)\s*(\d+))?(?:\*\*)?[\s:—–\-]*([^\n]*)/gi;
     const chunks = [];
-    let lastIndex = 0;
-    let match;
     const matches = [];
+    let match;
 
     while ((match = chunkRegex.exec(fullText)) !== null) {
       matches.push({
         index: match.index,
         number: parseInt(match[1]),
-        total: parseInt(match[2]),
-        purpose: match[3].trim(),
+        total: match[2] ? parseInt(match[2]) : null,
+        purpose: (match[3] || '').trim() || `Chunk ${match[1]}`,
         headerLength: match[0].length,
       });
     }
 
-    for (let i = 0; i < matches.length; i++) {
-      const start = matches[i].index + matches[i].headerLength;
-      const end = i < matches.length - 1 ? matches[i + 1].index : fullText.length;
+    // Deduplicate — if same chunk number appears multiple times, keep first
+    const seen = new Set();
+    const dedupedMatches = matches.filter(m => {
+      if (seen.has(m.number)) return false;
+      seen.add(m.number);
+      return true;
+    });
+
+    const totalChunkCount = dedupedMatches.length;
+    for (let i = 0; i < dedupedMatches.length; i++) {
+      const start = dedupedMatches[i].index + dedupedMatches[i].headerLength;
+      const end = i < dedupedMatches.length - 1 ? dedupedMatches[i + 1].index : fullText.length;
       const content = fullText.substring(start, end).trim();
 
       // Check for MCQ patterns
       const containsMcq = /\b[A-G]\)\s|options?\s*(?:labeled|are)\s|choose\s+(?:one|from)/i.test(content);
 
       chunks.push({
-        number: matches[i].number,
-        total: matches[i].total,
-        purpose: matches[i].purpose,
+        number: dedupedMatches[i].number,
+        total: dedupedMatches[i].total || totalChunkCount,
+        purpose: dedupedMatches[i].purpose,
         content,
         containsMcq,
         isSequenceComplete: content.includes('[SEQUENCE_COMPLETE]'),
