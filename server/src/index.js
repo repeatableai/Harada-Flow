@@ -34,6 +34,7 @@ import knowledgeFilesRoutes from './routes/knowledgeFiles.js';
 import activityRoutes from './routes/activity.js';
 import cuiScanRoutes from './routes/cuiScan.js';
 import dossierRoutes from './routes/dossier.js';
+import deliverableRoutes from './routes/deliverable.js';
 import seedRoutes from './routes/seed.js';
 
 const app = express();
@@ -76,6 +77,9 @@ app.use('/api/cui', cuiScanRoutes);
 
 // Dossier generation routes (Session 00)
 app.use('/api/dossier', dossierRoutes);
+
+// Deliverable generation routes (Working + Executive modes)
+app.use('/api/deliverable', deliverableRoutes);
 
 // Seed routes (for initial data population)
 app.use('/api/seed', seedRoutes);
