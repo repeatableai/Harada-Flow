@@ -124,35 +124,70 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   };
 
   // User confirms dossier check — they have files or want to proceed without
+  // Generated dossier content — prepended as Session 00 prompt
+  const [generatedDossier, setGeneratedDossier] = useState(null);
+  const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
+
   const handleDossierConfirm = async (hasFiles) => {
     if (hasFiles) {
-      // They'll upload via the knowledge files panel — mark as uploaded
+      // User has their own files — mark as uploaded, proceed immediately
       try {
         await apiClient.request(`/dossier/${company.id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({ dossierStatus: 'uploaded' }),
         });
       } catch { /* non-critical */ }
-    }
 
-    if (dontAskAgain) {
-      // Persist the dismissal
+      if (dontAskAgain) setDossierDismissed(true);
+      setShowDossierCheck(false);
+
+      if (pendingDossierDeliverable && pendingDossierMode) {
+        proceedToFlow(pendingDossierDeliverable, pendingDossierMode);
+        setPendingDossierDeliverable(null);
+        setPendingDossierMode(null);
+      }
+    } else {
+      // No files — generate a dossier via Claude API
+      setShowDossierCheck(false);
+      setIsGeneratingDossier(true);
+
       try {
-        await apiClient.request(`/dossier/${company.id}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ dossierStatus: hasFiles ? 'uploaded' : 'generated' }),
+        const result = await apiClient.request('/dossier/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            companyName: company.job_title ? `${company.industry} company` : 'the company',
+            engagementFocus: company.job_title || 'operational deliverables',
+            companyId: company.id,
+          }),
+          timeout: 600000,
         });
-      } catch { /* non-critical */ }
-    }
 
-    setDossierDismissed(true);
-    setShowDossierCheck(false);
+        setGeneratedDossier(result.content);
 
-    // Continue to the flow
-    if (pendingDossierDeliverable && pendingDossierMode) {
-      proceedToFlow(pendingDossierDeliverable, pendingDossierMode);
-      setPendingDossierDeliverable(null);
-      setPendingDossierMode(null);
+        toast({
+          title: 'Dossier Generated',
+          description: 'Company dossier created and will appear as your first prompt.',
+          duration: 4000,
+        });
+      } catch (err) {
+        toast({
+          title: 'Dossier generation failed',
+          description: err.message || 'Proceeding without dossier.',
+          variant: 'destructive',
+          duration: 5000,
+        });
+      } finally {
+        setIsGeneratingDossier(false);
+      }
+
+      if (dontAskAgain) setDossierDismissed(true);
+
+      // Proceed to flow regardless
+      if (pendingDossierDeliverable && pendingDossierMode) {
+        proceedToFlow(pendingDossierDeliverable, pendingDossierMode);
+        setPendingDossierDeliverable(null);
+        setPendingDossierMode(null);
+      }
     }
   };
 
@@ -759,10 +794,16 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
         </motion.div>
       )}
 
+      {/* Dossier generating overlay */}
+      {isGeneratingDossier && (
+        <LoadingOverlay message="Generating company dossier via web research... This may take 3-5 minutes." />
+      )}
+
       {step === 'working-flow' && selectedDeliverable && (
         <WorkingDeliverableFlow
           company={company}
           deliverable={selectedDeliverable}
+          sessionZeroDossier={generatedDossier}
           onBack={resetSelection}
           onComplete={() => {
             toast({ title: 'Deliverable complete', duration: 3000 });
@@ -775,6 +816,7 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
         <ExecutiveDceFlow
           company={company}
           deliverable={selectedDeliverable}
+          sessionZeroDossier={generatedDossier}
           onBack={resetSelection}
           onComplete={() => {
             toast({ title: 'Executive flow complete', duration: 3000 });

@@ -29,7 +29,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export default function ExecutiveDceFlow({ company, deliverable, onBack, onComplete }) {
+export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDossier, onBack, onComplete }) {
   const { toast } = useToast();
 
   // 8-prompt generation state (the existing DCE flow)
@@ -233,6 +233,43 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Session 00 — Generated Dossier (paste first if no user files) */}
+      {sessionZeroDossier && (
+        <Card className="bg-purple-500/5 border-purple-500/30">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-purple-500/20 px-2 py-0.5 rounded text-purple-300">
+                  Session 00
+                </span>
+                <span className="text-white text-sm font-medium">Company Dossier</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(sessionZeroDossier);
+                    toast({ title: 'Session 00 Dossier copied', duration: 2000 });
+                  } catch {
+                    toast({ title: 'Copy failed', variant: 'destructive' });
+                  }
+                }}
+                className="text-purple-300 border-purple-500/30 hover:bg-purple-500/10"
+              >
+                <Copy className="w-3 h-3 mr-1" /> Copy
+              </Button>
+            </div>
+            <p className="text-blue-200/60 text-xs">
+              Paste this dossier into your Claude session first — it provides the company context for everything that follows.
+            </p>
+            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap font-mono">
+              {sessionZeroDossier.substring(0, 500)}{sessionZeroDossier.length > 500 ? '...' : ''}
+            </pre>
           </CardContent>
         </Card>
       )}
