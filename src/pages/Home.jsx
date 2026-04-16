@@ -72,8 +72,11 @@ export default function HomePage() {
           };
           setCompany(conformedCompany);
 
-          // Check dossier status — route to Session 00 if pending
-          if (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status) {
+          // Check dossier status — route to Session 00 if pending AND no matrices yet
+          // (existing sessions with matrices skip Session 00 even if dossierStatus is unset)
+          const needsDossier = (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status)
+            && !conformedCompany.productivity_matrix && !conformedCompany.performance_matrix;
+          if (needsDossier) {
             setStep('session-00');
           } else if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
             setStep('builder');
@@ -159,8 +162,10 @@ export default function HomePage() {
     };
     setCompany(conformedCompany);
 
-    // Go to appropriate step based on session state — check dossier first
-    if (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status) {
+    // Go to appropriate step — Session 00 only if no matrices yet
+    const needsDossier = (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status)
+      && !conformedCompany.productivity_matrix && !conformedCompany.performance_matrix;
+    if (needsDossier) {
       setStep('session-00');
     } else if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
       setStep('builder');
