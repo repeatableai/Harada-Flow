@@ -29,6 +29,9 @@ model User {
   deliverablesLimit Int?      @map("deliverables_limit")              // Max outputs allowed (null = unlimited)
   sessionExpiry  DateTime? @map("session_expiry")
 
+  // DCE mode preference
+  dceDefaultMode String    @default("Working") @map("dce_default_mode")  // 'Working' | 'Executive' | 'AskEverySession'
+
   // Organization/Department associations
   organizationId String?       @map("organization_id")
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -80,6 +83,9 @@ model Company {
   // Session 00 — Dossier pre-check
   dossierStatus      String   @default("pending") @map("dossier_status")  // 'pending' | 'uploaded' | 'generated'
   dossierFilename    String?  @map("dossier_filename")
+
+  // DCE mode override for this session
+  sessionModeOverride String? @map("session_mode_override")  // 'Working' | 'Executive' | 'AskEverySession' | null (inherit global)
 
   userId             String   @map("user_id")
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -308,13 +308,14 @@ export async function getCurrentUser(userId) {
 }
 
 export async function updateCurrentUser(userId, data) {
-  const { name, jobTitle } = data;
+  const { name, jobTitle, dceDefaultMode } = data;
 
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
       ...(name !== undefined && { name }),
       ...(jobTitle !== undefined && { jobTitle }),
+      ...(dceDefaultMode !== undefined && { dceDefaultMode }),
     },
   });
 
@@ -356,6 +357,8 @@ function formatUserResponse(user) {
     // Trial user info
     isTrialUser: user.isTrialUser || false,
     deliverablesUsed: user.deliverablesUsed || 0,
+    // DCE mode preference
+    dceDefaultMode: user.dceDefaultMode || 'Working',
   };
 }
 

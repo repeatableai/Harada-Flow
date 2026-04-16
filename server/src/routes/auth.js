@@ -26,6 +26,7 @@ const updateMeSchema = z.object({
   name: z.string().min(1).optional(),
   jobTitle: z.string().optional(),
   job_title: z.string().optional(), // Accept both formats
+  dceDefaultMode: z.enum(['Working', 'Executive', 'AskEverySession']).optional(),
 });
 
 const forgotPasswordSchema = z.object({

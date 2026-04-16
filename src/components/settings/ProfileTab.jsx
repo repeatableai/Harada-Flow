@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   User,
   Mail,
   Briefcase,
@@ -16,6 +23,7 @@ import {
   Loader2,
   Save,
   Check,
+  Zap,
 } from 'lucide-react';
 
 export default function ProfileTab() {
@@ -23,6 +31,7 @@ export default function ProfileTab() {
   const [formData, setFormData] = useState({
     name: '',
     jobTitle: '',
+    dceDefaultMode: 'Working',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,6 +43,7 @@ export default function ProfileTab() {
       setFormData({
         name: user.name || '',
         jobTitle: user.jobTitle || '',
+        dceDefaultMode: user.dceDefaultMode || 'Working',
       });
     }
   }, [user]);
@@ -47,6 +57,7 @@ export default function ProfileTab() {
       await apiClient.auth.updateMe({
         name: formData.name.trim() || undefined,
         jobTitle: formData.jobTitle.trim() || undefined,
+        dceDefaultMode: formData.dceDefaultMode,
       });
       setSuccess('Profile updated successfully');
       if (refreshUser) {
@@ -60,7 +71,9 @@ export default function ProfileTab() {
   };
 
   const hasChanges =
-    formData.name !== (user?.name || '') || formData.jobTitle !== (user?.jobTitle || '');
+    formData.name !== (user?.name || '') ||
+    formData.jobTitle !== (user?.jobTitle || '') ||
+    formData.dceDefaultMode !== (user?.dceDefaultMode || 'Working');
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -137,7 +150,7 @@ export default function ProfileTab() {
               </p>
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label className="text-white flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-blue-400" />
                 Job Title
@@ -150,6 +163,29 @@ export default function ProfileTab() {
               />
               <p className="text-blue-300/70 text-xs">
                 This will pre-fill into deliverable creation forms
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-white flex items-center gap-2">
+                <Zap className="w-4 h-4 text-blue-400" />
+                DCE Default Mode
+              </Label>
+              <Select
+                value={formData.dceDefaultMode}
+                onValueChange={(value) => setFormData({ ...formData, dceDefaultMode: value })}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Working">Working Deliverable (fast)</SelectItem>
+                  <SelectItem value="Executive">Executive DCE (comprehensive)</SelectItem>
+                  <SelectItem value="AskEverySession">Ask Every Session</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-blue-300/70 text-xs">
+                Controls how deliverables are generated — can be overridden per session
               </p>
             </div>
           </div>
