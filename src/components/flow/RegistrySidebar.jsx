@@ -53,14 +53,22 @@ export default function RegistrySidebar({ companyId }) {
 
   const handleDownloadAcd = async (entry) => {
     try {
-      const response = await fetch(`/api/deliverable/registry/${entry.id}/acd`, {
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_BASE}/deliverable/registry/${entry.id}/acd`, {
         headers: {
           'Authorization': `Bearer ${apiClient.accessToken}`,
         },
       });
       if (!response.ok) throw new Error('ACD not available');
 
-      const blob = await response.blob();
+      const text = await response.text();
+      // Strip markdown code fences if Claude wrapped the HTML in ```html ... ```
+      let htmlContent = text;
+      if (htmlContent.startsWith('```')) {
+        htmlContent = htmlContent.replace(/^```html?\n?/, '').replace(/\n?```$/, '');
+      }
+
+      const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
