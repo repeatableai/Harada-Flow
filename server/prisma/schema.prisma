@@ -77,6 +77,10 @@ model Company {
   productivityMatrix Json?    @map("productivity_matrix")
   performanceMatrix  Json?    @map("performance_matrix")
 
+  // Session 00 — Dossier pre-check
+  dossierStatus      String   @default("pending") @map("dossier_status")  // 'pending' | 'uploaded' | 'generated'
+  dossierFilename    String?  @map("dossier_filename")
+
   userId             String   @map("user_id")
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdBy          String   @map("created_by") // User email for backwards compatibility

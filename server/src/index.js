@@ -33,6 +33,7 @@ import departmentsRoutes from './routes/departments.js';
 import knowledgeFilesRoutes from './routes/knowledgeFiles.js';
 import activityRoutes from './routes/activity.js';
 import cuiScanRoutes from './routes/cuiScan.js';
+import dossierRoutes from './routes/dossier.js';
 import seedRoutes from './routes/seed.js';
 
 const app = express();
@@ -72,6 +73,9 @@ app.use('/api/admin/activity', activityRoutes);
 
 // CUI data sniffer routes
 app.use('/api/cui', cuiScanRoutes);
+
+// Dossier generation routes (Session 00)
+app.use('/api/dossier', dossierRoutes);
 
 // Seed routes (for initial data population)
 app.use('/api/seed', seedRoutes);
