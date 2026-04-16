@@ -260,27 +260,18 @@ router.post('/executive', async (req, res, next) => {
       throw new AppError('Company not found or access denied', 404);
     }
 
-    // Pre-check: verify required files
-    const missingFiles = [];
+    // Pre-check: only verify things the user controls
+    // - Dossier status (did they upload context files or confirm they don't need them?)
+    // - At least one knowledge file exists for this user
+    // Internal system files (Master Spec, Dossier Protocol, etc.) are handled by the app — never user-facing
+    const warnings = [];
 
     if (company.dossierStatus === 'pending') {
-      missingFiles.push('Company Dossier (complete Session 00 first)');
+      warnings.push('No company context files uploaded yet. Executive mode works best with company knowledge files for context.');
     }
 
-    // Check for knowledge files
-    const knowledgeFiles = await prisma.knowledgeFile.findMany({
-      where: { uploaderId: req.user.id },
-      select: { originalName: true },
-    });
-
-    const fileNames = knowledgeFiles.map(f => f.originalName.toLowerCase());
-    if (!fileNames.some(f => f.includes('master_spec') || f.includes('dce_master'))) {
-      missingFiles.push('DCE_Master_Spec_v2_0.md');
-    }
-
-    if (missingFiles.length > 0) {
-      return res.json({ status: 'blocked', missingFiles });
-    }
+    // Soft warning only — don't block
+    // Executive mode proceeds regardless, with whatever context is available
 
     // Load Block A and Block B from disk
     const blocksDir = path.resolve(__dirname, '../../../src/prompts/ExecutiveDCE_Blocks');
@@ -306,6 +297,7 @@ router.post('/executive', async (req, res, next) => {
       status: 'ready',
       blocks,
       banner,
+      warnings,
       deliverableName,
       companyId,
     });
