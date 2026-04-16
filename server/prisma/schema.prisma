@@ -349,6 +349,7 @@ model ArtifactRegistry {
   status         String   @default("Generated")  // Generated, Published, Complete
   publishedUrl   String?  @map("published_url")
   acdUrl         String?  @map("acd_url")
+  acdContent     String?  @map("acd_content") @db.Text  // Generated ACD HTML content
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

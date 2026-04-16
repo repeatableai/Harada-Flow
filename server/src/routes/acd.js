@@ -75,7 +75,7 @@ router.post('/generate', async (req, res, next) => {
     if (registryEntry) {
       await prisma.artifactRegistry.update({
         where: { id: registryEntry.id },
-        data: { acdStatus: 'Complete' },
+        data: { acdStatus: 'Complete', acdContent },
       });
     }
 

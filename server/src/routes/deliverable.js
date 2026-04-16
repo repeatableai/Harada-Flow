@@ -317,4 +317,32 @@ router.get('/registry', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/deliverable/registry/:id/acd
+ * Download ACD content for a registry entry
+ */
+router.get('/registry/:id/acd', async (req, res, next) => {
+  try {
+    const entry = await prisma.artifactRegistry.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!entry) {
+      throw new AppError('Registry entry not found', 404);
+    }
+
+    if (!entry.acdContent) {
+      throw new AppError('No ACD content available for this entry', 404);
+    }
+
+    // Return as downloadable HTML file
+    const filename = `${entry.name.replace(/[^a-zA-Z0-9]/g, '_')}_ACD.html`;
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(entry.acdContent);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

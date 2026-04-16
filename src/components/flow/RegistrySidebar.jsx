@@ -3,20 +3,20 @@
  *
  * Displays artifact registry entries for the current engagement.
  * Mode column shows Executive vs Working.
+ * Download button for ACD when available.
  */
 
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '@/api/apiClient';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   FileText,
   FileSpreadsheet,
   File,
   Crown,
   Zap,
-  CheckCircle,
-  Clock,
-  XCircle,
+  Download,
 } from 'lucide-react';
 
 const TYPE_ICONS = {
@@ -51,6 +51,29 @@ export default function RegistrySidebar({ companyId }) {
     }
   };
 
+  const handleDownloadAcd = async (entry) => {
+    try {
+      const response = await fetch(`/api/deliverable/registry/${entry.id}/acd`, {
+        headers: {
+          'Authorization': `Bearer ${apiClient.accessToken}`,
+        },
+      });
+      if (!response.ok) throw new Error('ACD not available');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${entry.name.replace(/[^a-zA-Z0-9]/g, '_')}_ACD.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // ACD not available yet
+    }
+  };
+
   if (entries.length === 0) return null;
 
   return (
@@ -76,6 +99,17 @@ export default function RegistrySidebar({ companyId }) {
               <span className={`text-[10px] ${ACD_COLORS[entry.acdStatus] || 'text-gray-400'}`}>
                 ACD: {entry.acdStatus}
               </span>
+              {entry.acdStatus === 'Complete' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleDownloadAcd(entry)}
+                  className="h-5 w-5 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                  title="Download ACD"
+                >
+                  <Download className="w-3 h-3" />
+                </Button>
+              )}
             </div>
           );
         })}
