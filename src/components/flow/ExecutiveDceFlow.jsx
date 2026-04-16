@@ -237,48 +237,15 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </Card>
       )}
 
-      {/* Step 1: Generate 8-Prompt Pack */}
-      {!generatedPrompts && (
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-6 text-center space-y-4">
-            <div className="bg-white/5 rounded-lg p-4">
-              <h3 className="text-lg font-bold text-white mb-2">{deliverable.name}</h3>
-              <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">
-                {deliverable.type === 'productivity' ? 'Productivity Matrix' : 'Performance Matrix'}
-              </span>
-            </div>
-            <p className="text-blue-200/70 text-sm">
-              Executive mode generates 8 comprehensive DCE prompts plus supplementary governance blocks (A + B).
-            </p>
-            {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-300 text-sm">{error}</div>
-            )}
-            <Button
-              onClick={generatePrompts}
-              disabled={isGenerating}
-              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Generate Executive Prompts
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Show Generated Prompts */}
-      {generatedPrompts && (
-        <GeneratedPrompts prompts={generatedPrompts} onStartOver={onBack} />
-      )}
-
-      {/* Step 3: Supplementary Governance Blocks (A + B) */}
+      {/* Step 1: Governance Blocks (A + B) — paste these FIRST */}
       {blocks.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-white font-semibold text-sm flex items-center gap-2">
             <Crown className="w-4 h-4 text-purple-400" />
-            Supplementary Governance Blocks
+            Step 1 — Governance Blocks (paste these into your Claude session first)
           </h3>
           <p className="text-blue-200/60 text-xs">
-            Copy these into your Claude session alongside the generated prompts for full governance framework coverage.
+            These blocks load the DCE governance framework into your Claude session. Paste them before running the prompts below.
           </p>
 
           {blocks.map((block) => (
@@ -312,6 +279,43 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         <div className="flex items-center gap-2 text-blue-300/50 text-xs">
           <Loader2 className="w-3 h-3 animate-spin" />
           Loading governance blocks...
+        </div>
+      )}
+
+      {/* Step 2: Generate 8-Prompt Pack */}
+      {!generatedPrompts && (
+        <Card className="bg-white/5 border-white/10">
+          <CardContent className="p-6 text-center space-y-4">
+            <h3 className="text-white font-semibold text-sm">Step 2 — Generate DCE Prompts</h3>
+            <div className="bg-white/5 rounded-lg p-4">
+              <h3 className="text-lg font-bold text-white mb-2">{deliverable.name}</h3>
+              <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">
+                {deliverable.type === 'productivity' ? 'Productivity Matrix' : 'Performance Matrix'}
+              </span>
+            </div>
+            <p className="text-blue-200/70 text-sm">
+              After pasting the governance blocks above, generate 8 comprehensive DCE prompts for this deliverable.
+            </p>
+            {error && (
+              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-300 text-sm">{error}</div>
+            )}
+            <Button
+              onClick={generatePrompts}
+              disabled={isGenerating}
+              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6"
+            >
+              <Sparkles className="w-5 h-5 mr-2" />
+              Generate Executive Prompts
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: Show Generated Prompts */}
+      {generatedPrompts && (
+        <div className="space-y-3">
+          <h3 className="text-white font-semibold text-sm">Step 2 — Your DCE Prompts (paste these after the governance blocks)</h3>
+          <GeneratedPrompts prompts={generatedPrompts} onStartOver={onBack} />
         </div>
       )}
     </div>
