@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { InvokeLLM } from "@/api/integrations";
 import { SavedPrompt } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
@@ -6,24 +6,145 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus, AlertTriangle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus, AlertTriangle, Crown, Zap, ChevronUp, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { resolveMode } from "@/utils/resolveDceMode";
 
 import DeliverableSelector from "../deliverable/DeliverableSelector";
 import GeneratedPrompts from "../deliverable/GeneratedPrompts";
+import WorkingDeliverableFlow from "./WorkingDeliverableFlow";
+import ExecutiveDceFlow from "./ExecutiveDceFlow";
+import RegistrySidebar from "./RegistrySidebar";
 import LoadingOverlay from "../common/LoadingOverlay";
 import SessionsList from "../dashboard/SessionsList";
 import SavedPromptsList from "../dashboard/SavedPromptsList";
 
 export default function DeliverableCreatorStep({ company, onStartOver, onLoadSession, onDeleteSession }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedDeliverable, setSelectedDeliverable] = useState(null);
   const [generatedPrompts, setGeneratedPrompts] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [step, setStep] = useState('select'); // select, generate, view
+  const [step, setStep] = useState('select'); // select, generate, view, working-flow, executive-flow
   const [activeTab, setActiveTab] = useState('create');
   const [trialStatus, setTrialStatus] = useState(null);
+
+  // Mode state
+  const [sessionModeOverride, setSessionModeOverride] = useState(company?.session_mode_override || null);
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [pendingDeliverable, setPendingDeliverable] = useState(null);
+
+  // Session close state
+  const [isClosingSession, setIsClosingSession] = useState(false);
+
+  // Get resolved mode for display
+  const resolvedSessionMode = resolveMode({
+    userPref: user?.dceDefaultMode || 'Working',
+    sessionOverride: sessionModeOverride,
+  });
+
+  // Handle session mode override change
+  const handleSessionModeChange = async (value) => {
+    const override = value === 'inherit' ? null : value;
+    setSessionModeOverride(override);
+    try {
+      await apiClient.request(`/companies/${company.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ session_mode_override: override }),
+      });
+    } catch {
+      // Non-critical — local state already updated
+    }
+  };
+
+  // Handle deliverable selection with mode resolution
+  const handleDeliverableSelect = (deliverable, escalate = false) => {
+    const mode = resolveMode({
+      userPref: user?.dceDefaultMode || 'Working',
+      sessionOverride: sessionModeOverride,
+      escalateFlag: escalate,
+    });
+
+    if (mode === 'AskEverySession') {
+      setPendingDeliverable(deliverable);
+      setShowModeModal(true);
+      return;
+    }
+
+    routeToFlow(deliverable, mode);
+  };
+
+  // Route to the correct flow
+  const routeToFlow = (deliverable, mode) => {
+    setSelectedDeliverable(deliverable);
+    if (mode === 'Executive') {
+      setStep('executive-flow');
+    } else {
+      setStep('working-flow');
+    }
+  };
+
+  // Handle AskEverySession modal choice
+  const handleModeChoice = (mode) => {
+    setShowModeModal(false);
+    if (pendingDeliverable) {
+      routeToFlow(pendingDeliverable, mode);
+      setPendingDeliverable(null);
+    }
+  };
+
+  // Handle session close
+  const handleCloseSession = async () => {
+    setIsClosingSession(true);
+    try {
+      const result = await apiClient.request('/session/close', {
+        method: 'POST',
+        body: JSON.stringify({ companyId: company.id, sessionNumber: 1 }),
+      });
+      toast({
+        title: 'Session Closed',
+        description: 'Session close protocol executed successfully.',
+        duration: 5000,
+      });
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsClosingSession(false);
+    }
+  };
+
+  // Tab close handler — sendBeacon
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (company?.id) {
+        navigator.sendBeacon(
+          '/api/session/close',
+          JSON.stringify({ companyId: company.id, sessionNumber: 1 })
+        );
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [company?.id]);
 
   // Check trial user status on mount
   useEffect(() => {
@@ -530,10 +651,9 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           <DeliverableSelector
             productivityMatrix={productivity_matrix}
             performanceMatrix={performance_matrix}
-            onSelect={(deliverable) => {
-              setSelectedDeliverable(deliverable);
-              setStep('generate');
-            }}
+            onSelect={(deliverable) => handleDeliverableSelect(deliverable, false)}
+            onEscalate={(deliverable) => handleDeliverableSelect(deliverable, true)}
+            showEscalate={resolvedSessionMode === 'Working'}
           />
         </motion.div>
       )}
@@ -587,6 +707,30 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           <GeneratedPrompts prompts={generatedPrompts} onStartOver={resetSelection} />
         </motion.div>
       )}
+
+      {step === 'working-flow' && selectedDeliverable && (
+        <WorkingDeliverableFlow
+          company={company}
+          deliverable={selectedDeliverable}
+          onBack={resetSelection}
+          onComplete={() => {
+            toast({ title: 'Deliverable complete', duration: 3000 });
+            resetSelection();
+          }}
+        />
+      )}
+
+      {step === 'executive-flow' && selectedDeliverable && (
+        <ExecutiveDceFlow
+          company={company}
+          deliverable={selectedDeliverable}
+          onBack={resetSelection}
+          onComplete={() => {
+            toast({ title: 'Executive flow complete', duration: 3000 });
+            resetSelection();
+          }}
+        />
+      )}
     </>
   );
 
@@ -594,7 +738,7 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-4">
+          <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
             <Button
               variant="ghost"
               onClick={() => onStartOver(company)}
@@ -610,6 +754,40 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
               <span className="text-blue-200">•</span>
               <span className="text-blue-200">{company.industry}</span>
             </div>
+
+            {/* Mode badge + session override */}
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-lg rounded-full px-3 py-1">
+              {resolvedSessionMode === 'Executive' ? (
+                <Crown className="w-3.5 h-3.5 text-purple-400" />
+              ) : (
+                <Zap className="w-3.5 h-3.5 text-blue-400" />
+              )}
+              <Select
+                value={sessionModeOverride || 'inherit'}
+                onValueChange={handleSessionModeChange}
+              >
+                <SelectTrigger className="bg-transparent border-0 text-white text-xs h-6 w-auto min-w-0 p-0 pr-5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inherit">Mode: {user?.dceDefaultMode || 'Working'} (global)</SelectItem>
+                  <SelectItem value="Working">Working</SelectItem>
+                  <SelectItem value="Executive">Executive</SelectItem>
+                  <SelectItem value="AskEverySession">Ask Every Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Close Session */}
+            <Button
+              variant="ghost"
+              onClick={handleCloseSession}
+              disabled={isClosingSession}
+              className="bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 text-xs px-3 py-1 h-auto"
+            >
+              {isClosingSession ? <Zap className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+              Close Session
+            </Button>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
             <Target className="inline-block w-8 h-8 mr-3 text-blue-400" />
@@ -688,7 +866,40 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
             </motion.div>
           </TabsContent>
         </Tabs>
+
+        {/* Registry Sidebar */}
+        <div className="mt-8">
+          <RegistrySidebar companyId={company?.id} />
+        </div>
       </div>
+
+      {/* AskEverySession Modal */}
+      <AlertDialog open={showModeModal} onOpenChange={setShowModeModal}>
+        <AlertDialogContent className="bg-slate-900 border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">How should this deliverable be built?</AlertDialogTitle>
+            <AlertDialogDescription className="text-blue-300">
+              Choose the generation mode for "{pendingDeliverable?.name}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogAction
+              onClick={() => handleModeChoice('Working')}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              Working Deliverable (fast)
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleModeChoice('Executive')}
+              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+            >
+              <Crown className="w-4 h-4" />
+              Executive DCE (comprehensive)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

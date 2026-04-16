@@ -2,12 +2,12 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Target, Search, Plus } from "lucide-react";
+import { FileText, Target, Search, Plus, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import NewDeliverableDialog from "./NewDeliverableDialog";
 
-export default function DeliverableSelector({ productivityMatrix, performanceMatrix, onSelect }) {
+export default function DeliverableSelector({ productivityMatrix, performanceMatrix, onSelect, onEscalate, showEscalate }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMatrix, setSelectedMatrix] = useState("both");
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -150,12 +150,24 @@ export default function DeliverableSelector({ productivityMatrix, performanceMat
                         {deliverable.column}
                       </Badge>
                     </div>
-                    <Button
-                      onClick={() => onSelect(deliverable)}
-                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                    >
-                      Create Requests
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => onSelect(deliverable)}
+                        className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      >
+                        Create Requests
+                      </Button>
+                      {showEscalate && onEscalate && (
+                        <Button
+                          onClick={(e) => { e.stopPropagation(); onEscalate(deliverable); }}
+                          variant="outline"
+                          className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 px-2"
+                          title="Escalate to Executive DCE"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -19,6 +19,9 @@ import { AppError } from '../middleware/errorHandler.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// For internal ACD auto-fire calls
+const INTERNAL_BASE = `http://localhost:${config.port || 3001}`;
+
 const router = Router();
 router.use(authenticate);
 
@@ -185,14 +188,33 @@ router.post('/working/complete', async (req, res, next) => {
 
     const results = { acd: null, registry: null };
 
-    // Choice A (ACD only) or C (Both)
-    if (['A', 'C'].includes(acdRegistryChoice)) {
-      results.acd = 'queued'; // ACD generation handled by B.7 endpoint
+    // Choice B (Registry only) or C (Both) — actually write to artifact_registry
+    if (['B', 'C'].includes(acdRegistryChoice)) {
+      const existingCount = await prisma.artifactRegistry.count({ where: { companyId } });
+      await prisma.artifactRegistry.create({
+        data: {
+          companyId,
+          artifactNumber: existingCount + 1,
+          name: deliverableName,
+          type: 'MD',
+          mode: 'Working',
+          acdStatus: ['A', 'C'].includes(acdRegistryChoice) ? 'Required' : 'N/A',
+          sessionNumber: 1,
+          status: 'Generated',
+        },
+      });
+      results.registry = 'written';
     }
 
-    // Choice B (Registry only) or C (Both)
-    if (['B', 'C'].includes(acdRegistryChoice)) {
-      results.registry = 'logged'; // Registry write handled by B.6 endpoint
+    // Choice A (ACD only) or C (Both) — fire ACD generation
+    if (['A', 'C'].includes(acdRegistryChoice)) {
+      // Fire ACD asynchronously — don't block the response
+      fetch(`${INTERNAL_BASE}/api/acd/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
+        body: JSON.stringify({ companyId, artifactName: deliverableName, artifactType: 'MD' }),
+      }).catch(err => console.error('ACD auto-fire failed:', err.message));
+      results.acd = 'fired';
     }
 
     // Choice D — skip
@@ -277,6 +299,30 @@ router.post('/executive', async (req, res, next) => {
       deliverableName,
       companyId,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── Registry Read ─────────────────────────────────────────
+
+/**
+ * GET /api/deliverable/registry?companyId=xxx
+ * Fetch artifact registry entries for an engagement
+ */
+router.get('/registry', async (req, res, next) => {
+  try {
+    const { companyId } = req.query;
+    if (!companyId) {
+      throw new AppError('companyId is required', 400);
+    }
+
+    const entries = await prisma.artifactRegistry.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    res.json({ data: entries });
   } catch (error) {
     next(error);
   }
