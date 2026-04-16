@@ -928,17 +928,22 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
       <AlertDialog open={showDossierCheck} onOpenChange={(open) => { if (!open) { setShowDossierCheck(false); } }}>
         <AlertDialogContent className="bg-slate-900 border-white/20 max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-400" />
-              Company Knowledge Files
-            </AlertDialogTitle>
+            <div className="flex items-center justify-between">
+              <AlertDialogTitle className="text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                Company Knowledge Files
+              </AlertDialogTitle>
+              <AlertDialogCancel className="bg-transparent border-0 text-blue-300 hover:text-white hover:bg-white/10 h-8 w-8 p-0 rounded-full">
+                <XCircle className="w-4 h-4" />
+              </AlertDialogCancel>
+            </div>
             <AlertDialogDescription asChild>
               <div className="text-blue-300 space-y-3">
                 <p>
                   Are you using company-specific files (dossier, research, data) to inform this deliverable?
                 </p>
                 <p className="text-blue-200/60 text-xs">
-                  If yes, upload them via the Knowledge Files panel before proceeding. Company context produces significantly better deliverables.
+                  If yes, make sure you uploaded them in the first step when setting up your role. Company context produces significantly better deliverables.
                 </p>
                 <label className="flex items-center gap-2 cursor-pointer pt-2">
                   <input
