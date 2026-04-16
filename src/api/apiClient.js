@@ -29,11 +29,22 @@ class ApiClient {
     }
 
     try {
-      const response = await fetch(url, {
+      // Support timeout option via AbortController
+      const fetchOptions = {
         ...options,
         headers,
         credentials: 'include', // For httpOnly refresh token cookie
-      });
+      };
+      let timeoutId;
+      if (options.timeout) {
+        const controller = new AbortController();
+        fetchOptions.signal = controller.signal;
+        timeoutId = setTimeout(() => controller.abort(), options.timeout);
+        delete fetchOptions.timeout;
+      }
+
+      const response = await fetch(url, fetchOptions);
+      if (timeoutId) clearTimeout(timeoutId);
 
       // Handle 401 - attempt token refresh
       if (response.status === 401 && !options._isRetry) {

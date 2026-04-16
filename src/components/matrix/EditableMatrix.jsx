@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,15 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
   const { toast } = useToast();
   const [editedMatrix, setEditedMatrix] = useState(JSON.parse(JSON.stringify(matrix || {})));
   const [isGenerating, setIsGenerating] = useState(false);
+  const autosaveTimer = useRef(null);
+
+  // Autosave on blur — debounced to avoid rapid-fire saves
+  const triggerAutosave = useCallback((updatedMatrix) => {
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      onUpdate(updatedMatrix);
+    }, 500);
+  }, [onUpdate]);
 
   const isProductivity = matrixType === 'productivity';
 
@@ -20,6 +29,10 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
     const updated = { ...editedMatrix };
     updated.columns[columnIndex].name = newName;
     setEditedMatrix(updated);
+  };
+
+  const handleColumnNameBlur = () => {
+    triggerAutosave(editedMatrix);
   };
 
   const handleDeliverableChange = (columnIndex, deliverableIndex, newValue) => {
@@ -30,6 +43,10 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
       updated.columns[columnIndex].problems[deliverableIndex].problem = newValue;
     }
     setEditedMatrix(updated);
+  };
+
+  const handleDeliverableBlur = () => {
+    triggerAutosave(editedMatrix);
   };
 
   const addDeliverable = (columnIndex) => {
@@ -190,6 +207,7 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
                     <Input
                       value={column.name}
                       onChange={(e) => handleColumnNameChange(columnIndex, e.target.value)}
+                      onBlur={handleColumnNameBlur}
                       className="bg-white/10 border-white/20 text-white font-semibold"
                     />
                     <Button
@@ -208,6 +226,7 @@ export default function EditableMatrix({ matrix, matrixType, onUpdate, onCancel 
                         <Input
                           value={isProductivity ? item : item.problem}
                           onChange={(e) => handleDeliverableChange(columnIndex, itemIndex, e.target.value)}
+                          onBlur={handleDeliverableBlur}
                           className="bg-white/10 border-white/20 text-white text-sm"
                         />
                         <Button

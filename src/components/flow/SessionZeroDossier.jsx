@@ -124,6 +124,7 @@ export default function SessionZeroDossier({ company, onComplete }) {
           engagementFocus: engagementFocus.trim() || null,
           companyId: company.id,
         }),
+        timeout: 600000, // 10 minutes — dossier gen takes 3-5 min for F500
       });
 
       setDossierContent(result.content);
