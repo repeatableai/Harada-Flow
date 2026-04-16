@@ -7,7 +7,6 @@ import { sanitizeAndConformMatrix } from "../components/common/MatrixSanitizer";
 import { useAuth } from "../components/auth/AuthProvider";
 
 import WelcomeStep from "../components/flow/WelcomeStep";
-import SessionZeroDossier from "../components/flow/SessionZeroDossier";
 import MatrixBuilderStep from "../components/flow/MatrixBuilderStep";
 import DeliverableCreatorStep from "../components/flow/DeliverableCreatorStep";
 import LoadingOverlay from "../components/common/LoadingOverlay";
@@ -72,13 +71,7 @@ export default function HomePage() {
           };
           setCompany(conformedCompany);
 
-          // Check dossier status — route to Session 00 if pending AND no matrices yet
-          // (existing sessions with matrices skip Session 00 even if dossierStatus is unset)
-          const needsDossier = (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status)
-            && !conformedCompany.productivity_matrix && !conformedCompany.performance_matrix;
-          if (needsDossier) {
-            setStep('session-00');
-          } else if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
+          if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
             setStep('builder');
           } else {
             setStep('creator');
@@ -112,17 +105,6 @@ export default function HomePage() {
   const handleCompanyCreated = (newCompany, selectedKnowledgeFileIds = []) => {
     setCompany(newCompany);
     setKnowledgeFileIds(selectedKnowledgeFileIds);
-    // Route to Session 00 (Dossier) if dossier not yet done, otherwise skip to builder
-    if (newCompany.dossier_status === 'pending' || !newCompany.dossier_status) {
-      setStep('session-00');
-    } else {
-      setStep('builder');
-    }
-  };
-
-  const handleDossierComplete = (dossierStatus) => {
-    // Update company state with new dossier status and advance to builder
-    setCompany(prev => ({ ...prev, dossier_status: dossierStatus }));
     setStep('builder');
   };
   
@@ -162,12 +144,7 @@ export default function HomePage() {
     };
     setCompany(conformedCompany);
 
-    // Go to appropriate step — Session 00 only if no matrices yet
-    const needsDossier = (conformedCompany.dossier_status === 'pending' || !conformedCompany.dossier_status)
-      && !conformedCompany.productivity_matrix && !conformedCompany.performance_matrix;
-    if (needsDossier) {
-      setStep('session-00');
-    } else if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
+    if (!conformedCompany.productivity_matrix || !conformedCompany.performance_matrix) {
       setStep('builder');
     } else {
       setStep('creator');
@@ -191,13 +168,6 @@ export default function HomePage() {
             onLoadSession={handleLoadSession}
             onDeleteSession={handleDeleteSession}
             hasExistingSessions={userCompanies.length > 0}
-          />
-        );
-      case 'session-00':
-        return (
-          <SessionZeroDossier
-            company={company}
-            onComplete={handleDossierComplete}
           />
         );
       case 'builder':

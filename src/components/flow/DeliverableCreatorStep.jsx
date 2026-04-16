@@ -53,6 +53,15 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   const [showModeModal, setShowModeModal] = useState(false);
   const [pendingDeliverable, setPendingDeliverable] = useState(null);
 
+  // Dossier pre-check state (fires before first deliverable generation)
+  const [showDossierCheck, setShowDossierCheck] = useState(false);
+  const [dossierDismissed, setDossierDismissed] = useState(
+    company?.dossier_status === 'uploaded' || company?.dossier_status === 'generated'
+  );
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+  const [pendingDossierDeliverable, setPendingDossierDeliverable] = useState(null);
+  const [pendingDossierMode, setPendingDossierMode] = useState(null);
+
   // Session close state
   const [isClosingSession, setIsClosingSession] = useState(false);
 
@@ -93,13 +102,57 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
     routeToFlow(deliverable, mode);
   };
 
-  // Route to the correct flow
+  // Route to the correct flow — with dossier pre-check if not yet dismissed
   const routeToFlow = (deliverable, mode) => {
+    if (!dossierDismissed) {
+      // Show dossier check before proceeding
+      setPendingDossierDeliverable(deliverable);
+      setPendingDossierMode(mode);
+      setShowDossierCheck(true);
+      return;
+    }
+    proceedToFlow(deliverable, mode);
+  };
+
+  const proceedToFlow = (deliverable, mode) => {
     setSelectedDeliverable(deliverable);
     if (mode === 'Executive') {
       setStep('executive-flow');
     } else {
       setStep('working-flow');
+    }
+  };
+
+  // User confirms dossier check — they have files or want to proceed without
+  const handleDossierConfirm = async (hasFiles) => {
+    if (hasFiles) {
+      // They'll upload via the knowledge files panel — mark as uploaded
+      try {
+        await apiClient.request(`/dossier/${company.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ dossierStatus: 'uploaded' }),
+        });
+      } catch { /* non-critical */ }
+    }
+
+    if (dontAskAgain) {
+      // Persist the dismissal
+      try {
+        await apiClient.request(`/dossier/${company.id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ dossierStatus: hasFiles ? 'uploaded' : 'generated' }),
+        });
+      } catch { /* non-critical */ }
+    }
+
+    setDossierDismissed(true);
+    setShowDossierCheck(false);
+
+    // Continue to the flow
+    if (pendingDossierDeliverable && pendingDossierMode) {
+      proceedToFlow(pendingDossierDeliverable, pendingDossierMode);
+      setPendingDossierDeliverable(null);
+      setPendingDossierMode(null);
     }
   };
 
@@ -872,6 +925,51 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           <RegistrySidebar companyId={company?.id} />
         </div>
       </div>
+
+      {/* Dossier Pre-Check Modal */}
+      <AlertDialog open={showDossierCheck} onOpenChange={(open) => { if (!open) { setShowDossierCheck(false); } }}>
+        <AlertDialogContent className="bg-slate-900 border-white/20 max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-400" />
+              Company Knowledge Files
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-blue-300 space-y-3">
+                <p>
+                  Are you using company-specific files (dossier, research, data) to inform this deliverable?
+                </p>
+                <p className="text-blue-200/60 text-xs">
+                  If yes, upload them via the Knowledge Files panel before proceeding. Company context produces significantly better deliverables.
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer pt-2">
+                  <input
+                    type="checkbox"
+                    checked={dontAskAgain}
+                    onChange={(e) => setDontAskAgain(e.target.checked)}
+                    className="rounded border-white/30"
+                  />
+                  <span className="text-blue-200/70 text-xs">Don't ask me again for this session</span>
+                </label>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogAction
+              onClick={() => handleDossierConfirm(true)}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Yes, I have files uploaded
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDossierConfirm(false)}
+              className="bg-slate-700 hover:bg-slate-600 text-white"
+            >
+              No, proceed without
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* AskEverySession Modal */}
       <AlertDialog open={showModeModal} onOpenChange={setShowModeModal}>
