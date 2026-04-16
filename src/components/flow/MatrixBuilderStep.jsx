@@ -31,17 +31,22 @@ export default function MatrixBuilderStep({ company, knowledgeFileIds = [], onMa
     
     try {
       const productivityPrompt = `
+Generate the deliverable matrix for this role. Use any company dossier or knowledge files in project knowledge as authoritative context.
+
 Role: ${currentCompany.job_title}
 Industry: ${currentCompany.industry}
 Company Size: ${currentCompany.company_size}
 ${currentCompany.company_url ? `Company URL: ${currentCompany.company_url}` : ''}
 
-Based on the role details, generate a Productivity Matrix.
+PART A — 64 Standalone Deliverables (Productivity Matrix):
 The JSON object must have a "title" and a "columns" array.
 The title should be "First Draft of the Productivity Matrix".
 The "columns" array should contain exactly 8 objects, where each object represents an area of responsibility and has a "name" (string) and a "deliverables" (array of 8 strings).
 Each deliverable string must be a tangible output, ending with a format like "report", "plan", "document", etc.
+Use [SYN] for any placeholder baseline data.
 Ensure the 'deliverables' array is always present for each column.
+
+Do NOT generate prompt chains for individual deliverables — those are generated on-click in a subsequent step.
 
 Return ONLY the JSON object. Do not add any explanations or markdown formatting.
 `;
@@ -84,18 +89,22 @@ Return ONLY the JSON object. Do not add any explanations or markdown formatting.
       setProductivityMatrix(conformedProductivityMatrix);
 
       const performancePrompt = `
+Generate the performance-metric deliverable matrix for this role. Use any company dossier or knowledge files in project knowledge as authoritative context.
+
 Role: ${currentCompany.job_title}
 Industry: ${currentCompany.industry}
 Company Size: ${currentCompany.company_size}
 ${currentCompany.company_url ? `Company URL: ${currentCompany.company_url}` : ''}
 
-Based on the role details, generate a Performance Matrix.
+PART B — 64 Performance-Metric Deliverables:
 The JSON object must have a "title" and a "columns" array.
 The title should be "Performance Matrix".
 The "columns" array should contain exactly 8 objects. Each object represents a Key Performance Indicator (KPI) and must have a "name" (string for the KPI) and a "problems" array.
-The "problems" array must contain exactly 8 objects. Each problem object must have three string properties: "problem", "expert", and "strategy".
-The "problem" string should start with an actionable verb (e.g., "Increase", "Optimize").
+The "problems" array must contain exactly 8 objects. Each problem object must have three string properties: "problem" (starting with an actionable verb like Improve/Increase/Decrease/Optimize/Reduce), "expert", and "strategy".
+Use [SYN] for placeholder baseline data.
 Ensure the 'problems' array and all its nested properties are always present.
+
+Do NOT generate prompt chains for individual deliverables — those are generated on-click in a subsequent step.
 
 Return ONLY the JSON object. Do not add any explanations or markdown formatting.
 `;
