@@ -999,6 +999,14 @@ export default function CompanyManager() {
             <div className="flex-1" />
             <Button
               size="sm"
+              onClick={() => setShowAddDeptDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <FolderTree className="w-4 h-4 mr-1" />
+              Add Department
+            </Button>
+            <Button
+              size="sm"
               onClick={() => {
                 setInviteData({ name: '', email: '', password: '', jobTitle: '', role: 'USER', departmentId: '' });
                 setShowInviteDialog(true);
