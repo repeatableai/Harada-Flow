@@ -295,8 +295,12 @@ class ApiClient {
     },
 
     SavedPrompt: {
-      list: async () => {
-        const result = await this.request('/prompts');
+      list: async (params = {}) => {
+        const searchParams = new URLSearchParams();
+        if (params.companyId) searchParams.set('companyId', params.companyId);
+        if (params.search) searchParams.set('search', params.search);
+        const query = searchParams.toString();
+        const result = await this.request(`/prompts${query ? `?${query}` : ''}`);
         return Array.isArray(result) ? result : (result.data || []);
       },
 

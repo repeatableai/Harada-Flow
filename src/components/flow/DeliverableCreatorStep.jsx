@@ -959,7 +959,7 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
                   All your generated deliverable requests across all sessions
                 </p>
               </div>
-              <SavedPromptsList />
+              <SavedPromptsList companyId={company?.id} />
             </motion.div>
           </TabsContent>
         </Tabs>

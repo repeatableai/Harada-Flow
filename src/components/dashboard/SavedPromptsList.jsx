@@ -35,7 +35,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-export default function SavedPromptsList({ onPromptDeleted }) {
+export default function SavedPromptsList({ companyId, onPromptDeleted }) {
   const { toast } = useToast();
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,15 +43,16 @@ export default function SavedPromptsList({ onPromptDeleted }) {
   const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadPrompts();
-  }, []);
+  }, [companyId]);
 
   const loadPrompts = async () => {
     try {
       setLoading(true);
-      const result = await SavedPrompt.list();
+      const result = await SavedPrompt.list({ companyId, search: searchTerm || undefined });
       setPrompts(result);
     } catch (error) {
       console.error("Error loading prompts:", error);
@@ -64,6 +65,14 @@ export default function SavedPromptsList({ onPromptDeleted }) {
       setLoading(false);
     }
   };
+
+  // Re-search when search term changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadPrompts();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const handleDelete = async (prompt) => {
     try {
@@ -158,6 +167,17 @@ export default function SavedPromptsList({ onPromptDeleted }) {
 
   return (
     <>
+      {/* Search bar */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search by role or deliverable title..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-white placeholder-blue-300/50 text-sm focus:outline-none focus:border-blue-500/50"
+        />
+      </div>
+
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
           {prompts.map((savedPrompt, index) => (

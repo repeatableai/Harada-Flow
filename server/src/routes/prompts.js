@@ -36,10 +36,28 @@ const createPromptSchema = z.object({
   message: 'deliverable_type or deliverableType is required',
 });
 
-// GET /api/prompts - List all user's prompts across sessions
+// GET /api/prompts - List prompts, filterable by companyId and search term
 router.get('/', async (req, res, next) => {
   try {
-    const prompts = await promptService.listByUser(req.user.id);
+    const { companyId, search } = req.query;
+
+    let prompts;
+    if (companyId) {
+      prompts = await promptService.listByCompany(req.user.id, companyId);
+    } else {
+      prompts = await promptService.listByUser(req.user.id);
+    }
+
+    // Filter by search term (role name or deliverable title)
+    if (search && search.trim()) {
+      const term = search.trim().toLowerCase();
+      prompts = prompts.filter(p =>
+        (p.deliverable_name || '').toLowerCase().includes(term) ||
+        (p.company?.job_title || p.company?.jobTitle || '').toLowerCase().includes(term) ||
+        (p.column_name || '').toLowerCase().includes(term)
+      );
+    }
+
     res.json(prompts);
   } catch (error) {
     next(error);
