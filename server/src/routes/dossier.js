@@ -23,11 +23,17 @@ router.use(authenticate);
 
 // Load the Dossier Generation Protocol from disk
 function loadDossierProtocol() {
-  const protocolPath = path.resolve(__dirname, '../../../src/prompts/DCE_Dossier_Generation_Protocol.md');
-  if (!fs.existsSync(protocolPath)) {
-    throw new AppError('Dossier Generation Protocol file not found', 500);
+  // Try server/prompts first (Docker deployment), then src/prompts (local dev)
+  const paths = [
+    path.resolve(__dirname, '../../prompts/DCE_Dossier_Generation_Protocol.md'),
+    path.resolve(__dirname, '../../../src/prompts/DCE_Dossier_Generation_Protocol.md'),
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      return fs.readFileSync(p, 'utf-8');
+    }
   }
-  return fs.readFileSync(protocolPath, 'utf-8');
+  throw new AppError('Dossier Generation Protocol file not found', 500);
 }
 
 /**

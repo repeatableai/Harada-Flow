@@ -261,8 +261,11 @@ router.post('/executive', async (req, res, next) => {
     }
 
     // Pre-flight is informational only — never blocks
-    // Load Block A and Block B from disk
-    const blocksDir = path.resolve(__dirname, '../../../src/prompts/ExecutiveDCE_Blocks');
+    // Load Block A and Block B from disk — try server/prompts (Docker) then src/prompts (local dev)
+    let blocksDir = path.resolve(__dirname, '../../prompts/ExecutiveDCE_Blocks');
+    if (!fs.existsSync(blocksDir)) {
+      blocksDir = path.resolve(__dirname, '../../../src/prompts/ExecutiveDCE_Blocks');
+    }
     const blocks = [];
 
     for (const blockFile of ['BlockA.md', 'BlockB.md']) {
@@ -278,7 +281,10 @@ router.post('/executive', async (req, res, next) => {
     }
 
     // Load pre-flight banner
-    const bannerPath = path.resolve(__dirname, '../../../src/prompts/Executive_PreFlight_Banner.md');
+    let bannerPath = path.resolve(__dirname, '../../prompts/Executive_PreFlight_Banner.md');
+    if (!fs.existsSync(bannerPath)) {
+      bannerPath = path.resolve(__dirname, '../../../src/prompts/Executive_PreFlight_Banner.md');
+    }
     const banner = fs.existsSync(bannerPath) ? fs.readFileSync(bannerPath, 'utf-8') : null;
 
     res.json({
