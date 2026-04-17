@@ -47,7 +47,7 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
       console.error("Error loading sessions:", error);
       toast({
         title: "Error",
-        description: "Failed to load sessions",
+        description: "Failed to load roles",
         variant: "destructive",
       });
     } finally {
@@ -61,8 +61,8 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
       await Company.delete(session.id);
       setSessions(prev => prev.filter(s => s.id !== session.id));
       toast({
-        title: "Session deleted",
-        description: `Deleted "${session.job_title}" session`,
+        title: "Role deleted",
+        description: `Deleted "${session.job_title}" role`,
       });
       if (onDeleteSession) {
         onDeleteSession(session.id);
@@ -71,7 +71,7 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
       console.error("Error deleting session:", error);
       toast({
         title: "Error",
-        description: "Failed to delete session",
+        description: "Failed to delete role",
         variant: "destructive",
       });
     } finally {
@@ -102,7 +102,7 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
       <Card className="bg-white/5 backdrop-blur-lg border-white/10">
         <CardContent className="py-12 text-center">
           <FolderOpen className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No Sessions Yet</h3>
+          <h3 className="text-lg font-medium text-white mb-2">No Roles Yet</h3>
           <p className="text-gray-400">
             Create your first role deliverables matrix to see it here.
           </p>
@@ -213,9 +213,9 @@ export default function SessionsList({ currentCompanyId, onViewSession, onDelete
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent className="bg-gray-900 border-gray-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Session?</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Delete Role?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              This will permanently delete the "{deleteConfirm?.job_title}" session
+              This will permanently delete the "{deleteConfirm?.job_title}" role
               and all associated prompts. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

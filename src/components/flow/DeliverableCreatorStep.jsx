@@ -252,7 +252,7 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   }, []);
 
   if (!company) {
-    return <LoadingOverlay message="Loading session..." />;
+    return <LoadingOverlay message="Loading role..." />;
   }
   
   const { productivity_matrix, performance_matrix } = company;
@@ -911,7 +911,7 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300"
               >
                 <FolderOpen className="w-4 h-4 mr-2" />
-                Sessions
+                Roles
               </TabsTrigger>
               <TabsTrigger
                 value="prompts"
@@ -930,7 +930,7 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           <TabsContent value="sessions" className="mt-0">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-white mb-2">Your Sessions</h2>
+                <h2 className="text-xl font-semibold text-white mb-2">Your Roles</h2>
                 <p className="text-gray-400">
                   View and switch between your saved role deliverables matrices
                 </p>

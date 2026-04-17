@@ -183,7 +183,7 @@ export default function HomePage() {
         );
       case 'loading':
       default:
-        return <LoadingOverlay message="Loading your session..." />;
+        return <LoadingOverlay message="Loading your role..." />;
     }
   };
 
