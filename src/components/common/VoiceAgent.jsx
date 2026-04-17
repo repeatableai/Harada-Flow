@@ -2,14 +2,15 @@
  * DCE Voice Assistant
  *
  * Custom floating mic button using ElevenLabs React SDK.
- * No ElevenLabs branding — just a clean mic button.
+ * Uses server-side signed URL for authenticated sessions.
+ * No ElevenLabs branding.
  */
 
 import React, { useState, useCallback } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 
-const AGENT_ID = 'agent_5501kpehtkcxfhkvp3bqp38j238s';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 function VoiceAgentButton() {
   const [error, setError] = useState(null);
@@ -33,14 +34,28 @@ function VoiceAgentButton() {
     } else {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
-        await conversation.startSession({
-          agentId: AGENT_ID,
-        });
+
+        // Get signed URL from backend
+        const tokenResponse = await fetch(`${API_BASE}/voice/token`);
+        if (!tokenResponse.ok) {
+          throw new Error('Failed to get voice token');
+        }
+        const { signed_url } = await tokenResponse.json();
+
+        if (signed_url) {
+          await conversation.startSession({ signedUrl: signed_url });
+        } else {
+          // Fallback to public agent ID
+          await conversation.startSession({
+            agentId: 'agent_5501kpehtkcxfhkvp3bqp38j238s',
+          });
+        }
       } catch (err) {
+        console.error('Voice agent start error:', err);
         if (err.name === 'NotAllowedError') {
           setError('Microphone access denied');
         } else {
-          setError('Failed to connect');
+          setError(err.message || 'Failed to connect');
         }
         setTimeout(() => setError(null), 3000);
       }
