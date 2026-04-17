@@ -326,7 +326,7 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="companies" className="data-[state=active]:bg-white/20 text-white">
               <Briefcase className="w-4 h-4 mr-2" />
-              Sessions
+              Roles
             </TabsTrigger>
             {/* Time Savings tab hidden - keeping code for future use */}
             <TabsTrigger value="saved-prompts" className="data-[state=active]:bg-white/20 text-white">
@@ -405,7 +405,7 @@ export default function AdminDashboard() {
               <Card className="bg-white/10 border-white/20">
                 <CardHeader className="pb-2">
                   <CardDescription className="text-blue-200">
-                    {isDeptAdmin ? 'Department Sessions' : isCompanyAdmin() && !isSuperAdmin() ? 'Company Sessions' : 'Total Sessions'}
+                    {isDeptAdmin ? 'Department Roles' : isCompanyAdmin() && !isSuperAdmin() ? 'Company Roles' : 'Total Roles'}
                   </CardDescription>
                   <CardTitle className="text-3xl text-white">
                     {stats?.totalCompanies || 0}
@@ -546,7 +546,7 @@ export default function AdminDashboard() {
             */}
           </TabsContent>
 
-          {/* Companies/Sessions Tab */}
+          {/* Companies/Roles Tab */}
           <TabsContent value="companies" className="space-y-4">
             <div className="flex gap-2 flex-wrap">
               <Input

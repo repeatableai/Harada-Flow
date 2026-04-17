@@ -833,7 +833,7 @@ export default function DepartmentManager() {
                       <TabsList className="bg-white/10 border border-white/20 mb-4">
                         <TabsTrigger value="sessions" className="data-[state=active]:bg-white/20 text-white">
                           <Briefcase className="w-4 h-4 mr-2" />
-                          Sessions ({employeeSessions.length})
+                          Roles ({employeeSessions.length})
                         </TabsTrigger>
                         <TabsTrigger value="prompts" className="data-[state=active]:bg-white/20 text-white">
                           <FileText className="w-4 h-4 mr-2" />
@@ -871,7 +871,7 @@ export default function DepartmentManager() {
                               </div>
                             ))}
                             {employeeSessions.length === 0 && (
-                              <p className="text-blue-300/50 text-sm text-center py-4">No sessions</p>
+                              <p className="text-blue-300/50 text-sm text-center py-4">No roles</p>
                             )}
                           </div>
                         </ScrollArea>
@@ -912,7 +912,7 @@ export default function DepartmentManager() {
                         <ScrollArea className="h-full">
                           <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 bg-white/5 rounded-lg">
-                              <p className="text-blue-300 text-xs">Total Sessions</p>
+                              <p className="text-blue-300 text-xs">Total Roles</p>
                               <p className="text-2xl font-bold text-white">{employeeSessions.length}</p>
                             </div>
                             <div className="p-4 bg-white/5 rounded-lg">
