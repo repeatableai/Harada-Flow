@@ -48,6 +48,14 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   const [activeTab, setActiveTab] = useState('create');
   const [trialStatus, setTrialStatus] = useState(null);
 
+  // Reset to Create tab whenever the role (company) changes
+  useEffect(() => {
+    setActiveTab('create');
+    setStep('select');
+    setSelectedDeliverable(null);
+    setGeneratedPrompts(null);
+  }, [company?.id]);
+
   // Mode state
   const [sessionModeOverride, setSessionModeOverride] = useState(company?.session_mode_override || null);
   const [showModeModal, setShowModeModal] = useState(false);
