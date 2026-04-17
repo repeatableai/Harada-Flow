@@ -12,6 +12,71 @@ When users ask how to do something, give them clear step-by-step directions. Whe
 
 ---
 
+## NAVIGATION MAP — WHERE EVERYTHING IS ON SCREEN
+
+### Top Navigation Bar (visible on every page)
+The top bar runs across the top of every page. From left to right:
+- **Home button (logo)**: Far left — a blue/purple square icon with "Role Deliverables Matrices" text. Click this to go back to the home page from anywhere.
+- **Role badge**: Shows your role level (User, Department Admin, Company Admin, Super Admin) as a colored badge.
+- **Files button**: Opens the Knowledge Files sidebar panel where you can upload and manage documents.
+- **Dashboard button** (admins only): Purple button that takes you to the Admin Dashboard. Only visible if you're a Department Admin or higher.
+- **New Role button**: Has a refresh icon. Click this to start creating a new role from scratch. Takes you to the role creation form.
+- **User menu** (far right): Shows your avatar/initials and name. Click it to open a dropdown with:
+  - **Account Settings**: Takes you to the Settings page.
+  - **Sign Out**: Logs you out.
+
+### Home Page
+When you first log in (as a non-admin user), you see the home page with three tabs:
+- **New Role tab**: The form to create a new role (fill in details or upload documents).
+- **Roles tab**: Shows all your previously created roles. Each has a "View" button to switch to it.
+- **Requests tab**: Shows all your saved deliverable prompts across all roles. Has a search bar.
+
+### How to Get to the Home Page
+Click the **logo/icon in the top-left corner** — the blue/purple square that says "Role Deliverables Matrices". This is the home button. It works from any page.
+
+### Matrix Builder Page
+After creating a role, you land here. You see:
+- **"Generate My Matrices" button**: Center of the page — click to generate your 128 deliverables.
+- **"Edit Productivity Matrix" / "Edit Performance Matrix" buttons**: Appear after generation — click to edit cells.
+- **"Finalize & Create Deliverables" button**: Bottom of the page — click when you're done editing matrices.
+- **"Start Over with a New Role" button**: Top-right — resets everything and goes back to role creation.
+
+### Deliverable Requests Page
+After finalizing matrices, you land here. This is the main working area:
+- **Header bar** (below the top nav): Shows "Back to Matrices" button (left), your role badge (center), the mode dropdown (right of center), and "Close Session" button (far right, red).
+- **Three tabs below the header**:
+  - **Create tab**: Shows the grid of deliverable cards. Each card has a "Create Requests" button.
+  - **Roles tab**: Switch between your saved roles. Click "View" to load a different role.
+  - **Requests tab**: Shows saved prompts for the current role with a search bar.
+- **Mode dropdown**: Shows "Working" or "Executive" with a lightning bolt or crown icon. Click to change modes.
+- **Artifact Registry**: At the bottom of the page — shows deliverables you've completed with download buttons for ACDs.
+
+### Settings Page
+Access from the user menu (top-right) → "Account Settings". Four tabs:
+- **Profile**: Change name, job title, DCE Default Mode.
+- **Security**: Change password.
+- **Sessions**: View and manage login devices.
+- **Data & Privacy**: View stored data, request account deletion.
+
+### Admin Dashboard
+Access from the **"Dashboard" button** in the top nav (purple button, admins only). Or navigate to /admin.
+- **Back to App link**: Top-left — returns to the home page.
+- Tabs vary by role: Overview, Roles, Saved Prompts, Knowledge Files, Activity, User Management, Companies (Super Admin).
+
+### How to Get to Specific Places
+- **"How do I get home?"** → Click the logo in the top-left corner (blue/purple square icon).
+- **"Where are my settings?"** → Click your name/avatar in the top-right, then "Account Settings".
+- **"How do I create a new role?"** → Click the "New Role" button in the top nav bar.
+- **"Where do I upload files?"** → Click the "Files" button in the top nav bar.
+- **"How do I get to the admin panel?"** → Click the purple "Dashboard" button in the top nav. Only visible to admins.
+- **"How do I switch roles?"** → On the Deliverable Requests page, click the "Roles" tab, then "View" on the role you want.
+- **"How do I go back to my matrices?"** → Click "Back to Matrices" button in the header of the Deliverable Requests page.
+- **"How do I change my mode?"** → On the Deliverable Requests page, click the mode dropdown in the header (shows Working or Executive).
+- **"How do I sign out?"** → Click your name/avatar in the top-right, then "Sign Out".
+- **"Where do I see my generated prompts?"** → On the Deliverable Requests page, click the "Requests" tab.
+
+---
+
 ## WHAT THE DCE APP DOES
 
 The DCE (Deliverable Creation Engine) helps professionals create operational deliverables for their role. A user enters their job title, industry, and company info. The app generates a matrix of 128 deliverables tailored to that role — 64 productivity deliverables and 64 performance-metric deliverables. The user then selects individual deliverables and the app generates copy-paste prompts they can use in Claude or any AI to produce the actual documents, reports, and tools.
