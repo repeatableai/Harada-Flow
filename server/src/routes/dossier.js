@@ -36,13 +36,13 @@ function loadDossierProtocol() {
  */
 router.post('/generate', async (req, res, next) => {
   try {
-    const { companyName, engagementFocus, companyId } = req.body;
+    const { companyName, companyUrl, jobTitle, industry, companySize, engagementFocus, companyId } = req.body;
 
-    if (!companyName || !companyId) {
-      throw new AppError('companyName and companyId are required', 400);
+    if (!companyId) {
+      throw new AppError('companyId is required', 400);
     }
 
-    // Verify the company belongs to this user
+    // Verify the company belongs to this user and load full context
     const company = await prisma.company.findFirst({
       where: { id: companyId, userId: req.user.id },
     });
@@ -50,10 +50,34 @@ router.post('/generate', async (req, res, next) => {
       throw new AppError('Company not found or access denied', 404);
     }
 
+    // Use all available context — from request body AND stored company record
+    const resolvedCompanyName = companyName || company.industry || 'the company';
+    const resolvedUrl = companyUrl || company.companyUrl || null;
+    const resolvedJobTitle = jobTitle || company.jobTitle || null;
+    const resolvedIndustry = industry || company.industry || null;
+    const resolvedSize = companySize || company.companySize || null;
+
     // Load the protocol as the system prompt
     const systemPrompt = loadDossierProtocol();
 
-    const userPrompt = `Generate a comprehensive dossier for ${companyName}.${engagementFocus ? ` Engagement focus: ${engagementFocus}.` : ''} Execute the full 22-section template with tiered web research per the protocol.`;
+    // Build a rich user prompt with ALL available context
+    let userPrompt = `Generate a comprehensive dossier for ${resolvedCompanyName}.`;
+    if (resolvedUrl) {
+      userPrompt += `\n\nCOMPANY WEBSITE: ${resolvedUrl} — Start your research here. Read this website thoroughly for company identity, leadership, products/services, capabilities, certifications, and recent news before conducting web searches.`;
+    }
+    if (resolvedJobTitle) {
+      userPrompt += `\n\nENGAGEMENT CONTEXT: The user's role is ${resolvedJobTitle}. The dossier should be focused on the operational context relevant to this role.`;
+    }
+    if (resolvedIndustry) {
+      userPrompt += `\nINDUSTRY: ${resolvedIndustry}`;
+    }
+    if (resolvedSize) {
+      userPrompt += `\nCOMPANY SIZE: ${resolvedSize}`;
+    }
+    if (engagementFocus) {
+      userPrompt += `\nENGAGEMENT FOCUS: ${engagementFocus}`;
+    }
+    userPrompt += `\n\nExecute the full 22-section dossier template with tiered web research per the protocol. The company website URL above is your primary starting point — use it to anchor all research.`;
 
     // Initialize Anthropic client
     const anthropic = new Anthropic({
@@ -86,8 +110,9 @@ router.post('/generate', async (req, res, next) => {
       throw new AppError('Dossier generation returned empty content', 500);
     }
 
-    // Generate filename
-    const sanitizedName = companyName.replace(/[^a-zA-Z0-9]/g, '');
+    // Generate filename from best available company identifier
+    const nameForFile = resolvedCompanyName || resolvedIndustry || 'Company';
+    const sanitizedName = nameForFile.replace(/[^a-zA-Z0-9]/g, '');
     const dossierFilename = `${sanitizedName}_Dossier_DCE1.md`;
 
     // Update company record

@@ -147,7 +147,7 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
         setPendingDossierMode(null);
       }
     } else {
-      // No files — generate a dossier via Claude API
+      // No files — generate a dossier using all available company context
       setShowDossierCheck(false);
       setIsGeneratingDossier(true);
 
@@ -155,7 +155,11 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
         const result = await apiClient.request('/dossier/generate', {
           method: 'POST',
           body: JSON.stringify({
-            companyName: company.job_title ? `${company.industry} company` : 'the company',
+            companyName: company.industry || 'the company',
+            companyUrl: company.company_url || null,
+            jobTitle: company.job_title || null,
+            industry: company.industry || null,
+            companySize: company.company_size || null,
             engagementFocus: company.job_title || 'operational deliverables',
             companyId: company.id,
           }),
@@ -1008,9 +1012,9 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleDossierConfirm(false)}
-              className="bg-slate-700 hover:bg-slate-600 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              No, proceed without
+              No, Generate Dossier
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
