@@ -6,12 +6,12 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { useConversation } from '@elevenlabs/react';
+import { ConversationProvider, useConversation } from '@elevenlabs/react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 
 const AGENT_ID = 'agent_5501kpehtkcxfhkvp3bqp38j238s';
 
-export default function VoiceAgent() {
+function VoiceAgentButton() {
   const [error, setError] = useState(null);
 
   const conversation = useConversation({
@@ -49,7 +49,6 @@ export default function VoiceAgent() {
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-      {/* Status text */}
       {error && (
         <div className="bg-red-500/90 text-white text-xs px-3 py-1.5 rounded-full shadow-lg">
           {error}
@@ -62,7 +61,6 @@ export default function VoiceAgent() {
         </div>
       )}
 
-      {/* Mic button */}
       <button
         onClick={handleClick}
         disabled={isConnecting}
@@ -84,5 +82,13 @@ export default function VoiceAgent() {
         )}
       </button>
     </div>
+  );
+}
+
+export default function VoiceAgent() {
+  return (
+    <ConversationProvider>
+      <VoiceAgentButton />
+    </ConversationProvider>
   );
 }
