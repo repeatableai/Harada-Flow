@@ -89,6 +89,21 @@ export default function CompanyManager() {
   const [employeePrompts, setEmployeePrompts] = useState([]);
   const [loadingEmployeeData, setLoadingEmployeeData] = useState(false);
 
+  // Inline department creation state
+  const [showAddDeptDialog, setShowAddDeptDialog] = useState(false);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newDeptAdminName, setNewDeptAdminName] = useState('');
+  const [newDeptAdminEmail, setNewDeptAdminEmail] = useState('');
+  const [newDeptAdminPassword, setNewDeptAdminPassword] = useState('');
+  const [isCreatingDept, setIsCreatingDept] = useState(false);
+
+  // Inline user invite state
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteData, setInviteData] = useState({
+    name: '', email: '', password: '', jobTitle: '', role: 'USER', departmentId: '',
+  });
+  const [isInviting, setIsInviting] = useState(false);
+
   useEffect(() => {
     loadCompanies(1);
   }, []);
@@ -160,6 +175,70 @@ export default function CompanyManager() {
       console.error('Failed to load employee details:', error);
     } finally {
       setLoadingEmployeeData(false);
+    }
+  };
+
+  // Create department within current org
+  const handleCreateDepartment = async () => {
+    if (!newDeptName.trim() || !selectedCompany?.id) return;
+    setIsCreatingDept(true);
+    setError('');
+    try {
+      const deptData = { name: newDeptName.trim() };
+      if (newDeptAdminEmail.trim()) {
+        deptData.admin = {
+          name: newDeptAdminName.trim(),
+          email: newDeptAdminEmail.trim(),
+          password: newDeptAdminPassword,
+          jobTitle: '',
+        };
+      }
+      await apiClient.departments.create(selectedCompany.id, deptData);
+      setShowAddDeptDialog(false);
+      setNewDeptName('');
+      setNewDeptAdminName('');
+      setNewDeptAdminEmail('');
+      setNewDeptAdminPassword('');
+      // Reload departments
+      await loadCompanyDepartments(selectedCompany.id);
+      await loadCompanyUsers(selectedCompany.id);
+    } catch (err) {
+      setError(err.message || 'Failed to create department');
+    } finally {
+      setIsCreatingDept(false);
+    }
+  };
+
+  // Invite user to current org
+  const handleInviteUser = async () => {
+    if (!inviteData.name.trim() || !inviteData.email.trim() || !inviteData.password || !selectedCompany?.id) {
+      setError('Name, email, and password are required');
+      return;
+    }
+    if (inviteData.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    setIsInviting(true);
+    setError('');
+    try {
+      await apiClient.admin.inviteUser({
+        name: inviteData.name.trim(),
+        email: inviteData.email.trim(),
+        password: inviteData.password,
+        jobTitle: inviteData.jobTitle.trim() || undefined,
+        role: inviteData.role,
+        organizationId: selectedCompany.id,
+        departmentId: inviteData.departmentId || undefined,
+      });
+      setShowInviteDialog(false);
+      setInviteData({ name: '', email: '', password: '', jobTitle: '', role: 'USER', departmentId: '' });
+      // Reload users
+      await loadCompanyUsers(selectedCompany.id);
+    } catch (err) {
+      setError(err.message || 'Failed to invite user');
+    } finally {
+      setIsInviting(false);
     }
   };
 
@@ -917,6 +996,18 @@ export default function CompanyManager() {
               <FolderTree className="w-4 h-4 mr-2" />
               By Department ({companyDepartments.length})
             </Button>
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              onClick={() => {
+                setInviteData({ name: '', email: '', password: '', jobTitle: '', role: 'USER', departmentId: '' });
+                setShowInviteDialog(true);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Invite User
+            </Button>
           </div>
 
           <div className="flex gap-4 h-[55vh]">
@@ -960,10 +1051,21 @@ export default function CompanyManager() {
                 </>
               ) : (
                 <>
-                  <h4 className="text-sm font-medium text-blue-200 mb-2 flex items-center gap-2">
-                    <FolderTree className="w-4 h-4" />
-                    Departments
-                  </h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-blue-200 flex items-center gap-2">
+                      <FolderTree className="w-4 h-4" />
+                      Departments
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setShowAddDeptDialog(true)}
+                      className="text-green-400 hover:text-green-300 hover:bg-green-500/10 h-6 px-2 text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add
+                    </Button>
+                  </div>
                   <ScrollArea className="h-[calc(100%-2rem)]">
                     <div className="space-y-2">
                       {/* Unassigned employees section */}
@@ -1276,6 +1378,168 @@ export default function CompanyManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Department Dialog */}
+      <Dialog open={showAddDeptDialog} onOpenChange={setShowAddDeptDialog}>
+        <DialogContent className="bg-slate-900 border-white/20 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderTree className="w-5 h-5 text-green-400" />
+              Add Department to {selectedCompany?.name}
+            </DialogTitle>
+            <DialogDescription>Create a new department. Optionally assign a department admin.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-blue-200">Department Name *</Label>
+              <Input
+                value={newDeptName}
+                onChange={e => setNewDeptName(e.target.value)}
+                placeholder="e.g., Engineering, Operations"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            <div className="border-t border-white/10 pt-3">
+              <p className="text-blue-200/70 text-xs mb-3">Optional: Create a department admin</p>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-blue-200 text-sm">Admin Name</Label>
+                  <Input
+                    value={newDeptAdminName}
+                    onChange={e => setNewDeptAdminName(e.target.value)}
+                    placeholder="Full name"
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-blue-200 text-sm">Admin Email</Label>
+                  <Input
+                    type="email"
+                    value={newDeptAdminEmail}
+                    onChange={e => setNewDeptAdminEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-blue-200 text-sm">Admin Password</Label>
+                  <Input
+                    type="password"
+                    value={newDeptAdminPassword}
+                    onChange={e => setNewDeptAdminPassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                    className="bg-white/10 border-white/20 text-white"
+                  />
+                </div>
+              </div>
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowAddDeptDialog(false)} className="text-white">Cancel</Button>
+            <Button
+              onClick={handleCreateDepartment}
+              disabled={isCreatingDept || !newDeptName.trim()}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isCreatingDept ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              Create Department
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite User Dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+        <DialogContent className="bg-slate-900 border-white/20 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-green-400" />
+              Invite User to {selectedCompany?.name}
+            </DialogTitle>
+            <DialogDescription>Create a new user account for this company.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-blue-200">Full Name *</Label>
+              <Input
+                value={inviteData.name}
+                onChange={e => setInviteData({ ...inviteData, name: e.target.value })}
+                placeholder="First and last name"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-blue-200">Email *</Label>
+              <Input
+                type="email"
+                value={inviteData.email}
+                onChange={e => setInviteData({ ...inviteData, email: e.target.value })}
+                placeholder="user@company.com"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-blue-200">Password *</Label>
+              <Input
+                type="password"
+                value={inviteData.password}
+                onChange={e => setInviteData({ ...inviteData, password: e.target.value })}
+                placeholder="Min 8 characters"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-blue-200">Job Title</Label>
+              <Input
+                value={inviteData.jobTitle}
+                onChange={e => setInviteData({ ...inviteData, jobTitle: e.target.value })}
+                placeholder="e.g., VP of Operations"
+                className="bg-white/10 border-white/20 text-white"
+              />
+            </div>
+            <div>
+              <Label className="text-blue-200">Role</Label>
+              <Select value={inviteData.role} onValueChange={v => setInviteData({ ...inviteData, role: v })}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="DEPARTMENT_ADMIN">Department Admin</SelectItem>
+                  <SelectItem value="COMPANY_ADMIN">Company Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-blue-200">Department</Label>
+              <Select value={inviteData.departmentId} onValueChange={v => setInviteData({ ...inviteData, departmentId: v })}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Select department (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No Department</SelectItem>
+                  {companyDepartments.map(dept => (
+                    <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowInviteDialog(false)} className="text-white">Cancel</Button>
+            <Button
+              onClick={handleInviteUser}
+              disabled={isInviting || !inviteData.name.trim() || !inviteData.email.trim() || !inviteData.password}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isInviting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Mail className="w-4 h-4 mr-2" />}
+              Invite User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
