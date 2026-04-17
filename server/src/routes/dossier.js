@@ -85,8 +85,8 @@ router.post('/generate', async (req, res, next) => {
       timeout: 600000, // 10 minutes — dossier gen takes 3-5 min for F500
     });
 
-    // Call Claude with web_search tool enabled
-    const response = await anthropic.messages.create({
+    // Call Claude with web_search tool enabled — use streaming to prevent socket timeouts
+    const stream = anthropic.messages.stream({
       model: config.anthropic.model || 'claude-opus-4-6',
       max_tokens: 32768,
       system: systemPrompt,
@@ -98,8 +98,9 @@ router.post('/generate', async (req, res, next) => {
       }],
     });
 
-    // Extract the text content from the response
+    // Collect streamed text — streaming keeps the connection alive
     let dossierContent = '';
+    const response = await stream.finalMessage();
     for (const block of response.content) {
       if (block.type === 'text') {
         dossierContent += block.text;
