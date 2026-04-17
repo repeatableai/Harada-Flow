@@ -16,7 +16,6 @@ import { usePermissions } from "@/components/common/usePermissions";
 import SessionWarning from "@/components/auth/SessionWarning";
 import { useAuth } from "@/components/auth/AuthProvider";
 import KnowledgeFilesPanel from "@/components/common/KnowledgeFilesPanel";
-import VoiceAgent from "@/components/common/VoiceAgent";
 
 function getInitials(name, email) {
   if (name && name.trim()) {
@@ -251,7 +250,6 @@ export default function Layout({ children }) {
       />
 
       {/* Voice Assistant */}
-      <VoiceAgent />
     </div>
   );
 }
