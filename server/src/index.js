@@ -54,6 +54,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ElevenLabs voice agent — get signed conversation URL (no auth required)
+app.get('/api/voice/token', async (req, res) => {
+  try {
+    const agentId = process.env.ELEVENLABS_AGENT_ID || 'agent_5501kpehtkcxfhkvp3bqp38j238s';
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'ElevenLabs API key not configured' });
+    }
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${agentId}`,
+      { headers: { 'xi-api-key': apiKey } }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companiesRoutes);
