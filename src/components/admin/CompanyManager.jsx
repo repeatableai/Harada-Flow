@@ -1513,12 +1513,12 @@ export default function CompanyManager() {
             </div>
             <div>
               <Label className="text-blue-200">Department</Label>
-              <Select value={inviteData.departmentId} onValueChange={v => setInviteData({ ...inviteData, departmentId: v })}>
+              <Select value={inviteData.departmentId || 'none'} onValueChange={v => setInviteData({ ...inviteData, departmentId: v === 'none' ? '' : v })}>
                 <SelectTrigger className="bg-white/10 border-white/20 text-white">
                   <SelectValue placeholder="Select department (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Department</SelectItem>
+                  <SelectItem value="none">No Department</SelectItem>
                   {companyDepartments.map(dept => (
                     <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
                   ))}
