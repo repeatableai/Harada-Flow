@@ -32,6 +32,7 @@ app.use('/api/companies', companiesRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/prompts', promptsRoutes);
+app.use('/api', promptsRoutes); // Mount prompt creation under /api/companies/:id/prompts
 app.use('/api/time-studies', timeStudiesRoutes);
 app.use('/api/organizations', organizationsRoutes);
 app.use('/api/departments', departmentsRoutes);
