@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/api/apiClient';
+import { SavedPrompt } from '@/api/entities';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Copy,
@@ -63,7 +64,28 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
         }),
       });
 
-      setChunks(result.chunks || []);
+      const generatedChunks = result.chunks || [];
+      setChunks(generatedChunks);
+
+      // Auto-save the generated prompts so they appear in Saved Requests
+      try {
+        await SavedPrompt.create(company.id, {
+          deliverable_name: deliverable.name,
+          deliverable_type: deliverable.type,
+          column_name: deliverable.column || deliverable.category || null,
+          overview: `Working mode — ${generatedChunks.length} prompt chunks for ${deliverable.name}`,
+          prompts: generatedChunks.map((chunk, i) => ({
+            step: chunk.number || i + 1,
+            title: chunk.title || `Chunk ${chunk.number || i + 1}`,
+            description: chunk.description || '',
+            prompt: chunk.content || '',
+          })),
+          is_custom: deliverable.isCustom || false,
+          custom_input: deliverable.isCustom ? deliverable.name : null,
+        });
+      } catch {
+        // Non-critical — prompts were generated successfully
+      }
     } catch (err) {
       setError(err.message || 'Failed to generate chunks');
     } finally {
