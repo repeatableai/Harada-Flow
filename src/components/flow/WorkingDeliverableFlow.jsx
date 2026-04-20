@@ -67,19 +67,37 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
       const generatedChunks = result.chunks || [];
       setChunks(generatedChunks);
 
-      // Auto-save the generated prompts so they appear in Saved Requests
+      // Auto-save the generated prompts — include dossier if available
       try {
+        const allPrompts = [];
+
+        // Step 0: Session 00 Dossier (if generated)
+        if (sessionZeroDossier) {
+          allPrompts.push({
+            step: 0,
+            title: 'Session 00 — Company Dossier',
+            description: 'Paste this dossier into your Claude session first — it provides the company context for everything that follows.',
+            prompt: sessionZeroDossier,
+          });
+        }
+
+        // Working mode chunks
+        const offset = allPrompts.length;
+        generatedChunks.forEach((chunk, i) => {
+          allPrompts.push({
+            step: offset + (chunk.number || i + 1),
+            title: chunk.purpose || `Chunk ${chunk.number || i + 1}`,
+            description: `Chunk ${chunk.number || i + 1} of ${chunk.total || generatedChunks.length}`,
+            prompt: chunk.content || '',
+          });
+        });
+
         await SavedPrompt.create(company.id, {
           deliverable_name: deliverable.name,
           deliverable_type: deliverable.type,
           column_name: deliverable.column || deliverable.category || null,
           overview: `Working mode — ${generatedChunks.length} prompt chunks for ${deliverable.name}`,
-          prompts: generatedChunks.map((chunk, i) => ({
-            step: chunk.number || i + 1,
-            title: chunk.purpose || `Chunk ${chunk.number || i + 1}`,
-            description: `Chunk ${chunk.number || i + 1} of ${chunk.total || generatedChunks.length}`,
-            prompt: chunk.content || '',
-          })),
+          prompts: allPrompts,
           is_custom: deliverable.isCustom || false,
           custom_input: deliverable.isCustom ? deliverable.name : null,
         });

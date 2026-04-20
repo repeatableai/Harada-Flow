@@ -116,19 +116,52 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
 
       setGeneratedPrompts(result);
 
-      // Auto-save prompts
+      // Auto-save prompts — include dossier + Block A/B + the 8 generated steps
       try {
+        const allPrompts = [];
+
+        // Step 0: Session 00 Dossier (if generated)
+        if (sessionZeroDossier) {
+          allPrompts.push({
+            step: 0,
+            title: 'Session 00 — Company Dossier',
+            description: 'Paste this dossier into your Claude session first — it provides the company context for everything that follows.',
+            prompt: sessionZeroDossier,
+          });
+        }
+
+        // Block A & B cards (loaded on mount)
+        if (blocks && blocks.length > 0) {
+          blocks.forEach((block, i) => {
+            allPrompts.push({
+              step: allPrompts.length,
+              title: block.title || `Block ${String.fromCharCode(65 + i)}`,
+              description: block.description || `Supplementary block ${String.fromCharCode(65 + i)}`,
+              prompt: block.content || block.prompt || '',
+            });
+          });
+        }
+
+        // Steps 1-8: Generated prompts (renumber to follow dossier + blocks)
+        const offset = allPrompts.length;
+        result.prompts.forEach((p, i) => {
+          allPrompts.push({
+            ...p,
+            step: offset + i + 1,
+          });
+        });
+
         await SavedPrompt.create(company.id, {
           deliverable_name: deliverable.name,
           deliverable_type: deliverable.type,
           column_name: deliverable.column || null,
           overview: result.overview,
-          prompts: result.prompts,
+          prompts: allPrompts,
           is_custom: deliverable.isCustom || false,
           custom_input: deliverable.isCustom ? deliverable.name : null,
         });
-      } catch {
-        // Non-critical
+      } catch (saveErr) {
+        console.error('ExecutiveDceFlow: failed to save prompts:', saveErr);
       }
 
       // Auto-fire ACD + Registry (Executive mode — no user choice)
