@@ -339,17 +339,13 @@ export default function UserManager() {
       setError('Password must be at least 8 characters');
       return;
     }
-    // Department is required for Company Admins (they select), but auto-filled for Dept Admins
-    if (!isDeptAdmin && !formData.departmentId) {
-      setError('Department is required');
-      return;
-    }
+    // Department is optional for Company Admins; auto-filled for Dept Admins
 
     setIsSubmitting(true);
     setError('');
     try {
       // For Dept Admins, use their own department; for others, use selected department
-      const targetDepartmentId = isDeptAdmin ? department?.id : formData.departmentId;
+      const targetDepartmentId = isDeptAdmin ? department?.id : (formData.departmentId || undefined);
 
       await apiClient.admin.inviteUser({
         name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
