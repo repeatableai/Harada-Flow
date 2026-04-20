@@ -138,6 +138,15 @@ router.post('/generate', async (req, res, next) => {
       dossierStatus: 'generated',
     });
   } catch (error) {
+    console.error('[DOSSIER] Generation failed:', {
+      name: error.name,
+      message: error.message,
+      status: error.status,
+      cause: error.cause?.message,
+      apiKeyPresent: !!config.anthropic.apiKey,
+      apiKeyPrefix: config.anthropic.apiKey ? config.anthropic.apiKey.slice(0, 10) : 'MISSING',
+      model: config.anthropic.model,
+    });
     next(error);
   }
 });
