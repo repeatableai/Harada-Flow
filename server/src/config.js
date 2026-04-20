@@ -32,8 +32,8 @@ export default {
   },
 
   anthropic: {
-    apiKey: process.env.ANTHROPIC_API_KEY,
-    model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
+    apiKey: process.env.ANTHROPIC_API_KEY?.trim(),
+    model: (process.env.ANTHROPIC_MODEL || 'claude-opus-4-6').trim(),
   },
 
   supabase: {
