@@ -76,8 +76,8 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
           overview: `Working mode — ${generatedChunks.length} prompt chunks for ${deliverable.name}`,
           prompts: generatedChunks.map((chunk, i) => ({
             step: chunk.number || i + 1,
-            title: chunk.title || `Chunk ${chunk.number || i + 1}`,
-            description: chunk.description || '',
+            title: chunk.purpose || `Chunk ${chunk.number || i + 1}`,
+            description: `Chunk ${chunk.number || i + 1} of ${chunk.total || generatedChunks.length}`,
             prompt: chunk.content || '',
           })),
           is_custom: deliverable.isCustom || false,
