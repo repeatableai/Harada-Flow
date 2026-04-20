@@ -18,8 +18,41 @@ import { AppError } from '../middleware/errorHandler.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// TEMPORARY diagnostic — will be wired to router below
+async function debugAnthropic(req, res) {
+  try {
+    const anthropic = new Anthropic({ apiKey: config.anthropic.apiKey });
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5-20250514',
+      max_tokens: 50,
+      messages: [{ role: 'user', content: 'Say hello in 5 words' }],
+    });
+    res.json({
+      success: true,
+      apiKeyPrefix: config.anthropic.apiKey?.slice(0, 15),
+      model: config.anthropic.model,
+      response: response.content[0]?.text,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      errorName: error.name,
+      errorMessage: error.message,
+      errorStatus: error.status,
+      errorCause: error.cause?.message,
+      errorStack: error.stack?.split('\n').slice(0, 5),
+      apiKeyPresent: !!config.anthropic.apiKey,
+      apiKeyPrefix: config.anthropic.apiKey?.slice(0, 15),
+      apiKeyLength: config.anthropic.apiKey?.length,
+      model: config.anthropic.model,
+      nodeVersion: process.version,
+    });
+  }
+}
+
 const router = Router();
 router.use(authenticate);
+router.get('/debug-anthropic', debugAnthropic);
 
 // Load the Dossier Generation Protocol from disk
 function loadDossierProtocol() {
