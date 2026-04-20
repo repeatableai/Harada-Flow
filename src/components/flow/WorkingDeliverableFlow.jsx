@@ -83,8 +83,8 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
           is_custom: deliverable.isCustom || false,
           custom_input: deliverable.isCustom ? deliverable.name : null,
         });
-      } catch {
-        // Non-critical — prompts were generated successfully
+      } catch (saveErr) {
+        console.error('WorkingDeliverableFlow: failed to save prompts:', saveErr);
       }
     } catch (err) {
       setError(err.message || 'Failed to generate chunks');
