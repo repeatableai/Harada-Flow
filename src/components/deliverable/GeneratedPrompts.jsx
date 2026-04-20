@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, CheckCircle, FileText, ArrowLeft } from "lucide-react";
+import { Copy, CheckCircle, FileText, ArrowLeft, Download } from "lucide-react";
 import { motion } from "framer-motion";
+import { downloadDossier } from "@/lib/downloadDossier";
 
 export default function GeneratedPrompts({ prompts, onStartOver }) {
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -40,6 +41,19 @@ export default function GeneratedPrompts({ prompts, onStartOver }) {
                   className="h-5 w-auto"
                 />
               </div>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  const allText = prompts.prompts
+                    .map((p) => `--- Step ${p.step}: ${p.title} ---\n\n${p.prompt}`)
+                    .join('\n\n');
+                  downloadDossier(allText, prompts.deliverable_name || 'Generated-Prompts');
+                }}
+                className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download All
+              </Button>
               <Button
                 variant="ghost"
                 onClick={onStartOver}
