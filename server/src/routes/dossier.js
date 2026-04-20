@@ -93,7 +93,7 @@ router.post('/generate', async (req, res, next) => {
 
     // Call Claude with web_search tool enabled
     const response = await anthropic.messages.create({
-      model: config.anthropic.model || 'claude-sonnet-4-5-20250514',
+      model: config.anthropic.model || 'claude-opus-4-6',
       max_tokens: 32768,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
