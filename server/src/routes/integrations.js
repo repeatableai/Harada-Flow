@@ -28,10 +28,9 @@ const invokeLLMSchema = z.object({
   deliverableName: z.string().optional().nullable(),
 });
 
-// POST /api/integrations/llm - Invoke LLM
+// POST /api/integrations/llm - Invoke LLM (non-streaming fallback)
 router.post('/llm', async (req, res, next) => {
   try {
-    // Check trial user deliverable limit before allowing LLM generation
     const trialStatus = await checkTrialUserDeliverableLimit(req.user.id);
     if (trialStatus.isTrialUser && !trialStatus.canSave) {
       throw new AppError(
@@ -47,15 +46,12 @@ router.post('/llm', async (req, res, next) => {
       response_json_schema: data.response_json_schema,
       add_context_from_internet: data.add_context_from_internet,
       company_url: data.company_url,
-      // Additional knowledge files as context
       knowledgeFileIds: data.knowledgeFileIds,
-      user: req.user, // Pass full user for access checks
-      // Time study tracking - userId from auth middleware
+      user: req.user,
       operationType: data.operationType,
       operationName: data.operationName,
       companyId: data.companyId,
       userId: req.user.id,
-      // Dynamic baseline params
       industry: data.industry,
       companySize: data.companySize,
       deliverableName: data.deliverableName,
@@ -64,6 +60,53 @@ router.post('/llm', async (req, res, next) => {
     res.json(result);
   } catch (error) {
     next(error);
+  }
+});
+
+// POST /api/integrations/llm/stream - Invoke LLM with SSE streaming (prevents 504 timeouts)
+router.post('/llm/stream', async (req, res) => {
+  // Set SSE headers immediately to keep connection alive
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable Vercel/nginx buffering
+  res.flushHeaders();
+
+  try {
+    const trialStatus = await checkTrialUserDeliverableLimit(req.user.id);
+    if (trialStatus.isTrialUser && !trialStatus.canSave) {
+      res.write(`event: error\ndata: ${JSON.stringify({ message: 'Trial account limit reached.' })}\n\n`);
+      return res.end();
+    }
+
+    const data = invokeLLMSchema.parse(req.body);
+
+    const result = await invokeLLM({
+      prompt: data.prompt,
+      response_json_schema: data.response_json_schema,
+      add_context_from_internet: data.add_context_from_internet,
+      company_url: data.company_url,
+      knowledgeFileIds: data.knowledgeFileIds,
+      user: req.user,
+      operationType: data.operationType,
+      operationName: data.operationName,
+      companyId: data.companyId,
+      userId: req.user.id,
+      industry: data.industry,
+      companySize: data.companySize,
+      deliverableName: data.deliverableName,
+      // SSE progress callback — sends keepalive events to prevent timeout
+      onProgress: (progress) => {
+        res.write(`event: progress\ndata: ${JSON.stringify(progress)}\n\n`);
+      },
+    });
+
+    res.write(`event: complete\ndata: ${JSON.stringify(result)}\n\n`);
+    res.end();
+  } catch (error) {
+    console.error('LLM stream error:', error);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: error.message || 'LLM request failed' })}\n\n`);
+    res.end();
   }
 });
 

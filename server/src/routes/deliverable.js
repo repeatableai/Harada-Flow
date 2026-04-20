@@ -103,17 +103,20 @@ ROLE CONTEXT:
 
 Generate the dynamic chunk sequence now.`;
 
-    const response = await anthropic.messages.create({
+    // Use streaming to prevent connection timeouts on large responses
+    const stream = anthropic.messages.stream({
       model: config.anthropic.model || 'claude-opus-4-6',
       max_tokens: 32768,
       system: WORKING_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    // Extract text
+    // Accumulate streamed text
     let fullText = '';
-    for (const block of response.content) {
-      if (block.type === 'text') fullText += block.text;
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.text) {
+        fullText += event.delta.text;
+      }
     }
 
     // Parse chunks — flexible regex to handle Claude's varied header formats:

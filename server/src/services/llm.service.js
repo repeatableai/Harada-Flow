@@ -28,6 +28,8 @@ export async function invokeLLM({
   industry,
   companySize,
   deliverableName,
+  // Optional SSE progress callback (keeps connection alive during streaming)
+  onProgress,
 }) {
   if (!config.anthropic.apiKey) {
     throw new Error('Anthropic API key not configured. Set ANTHROPIC_API_KEY in your .env file.');
@@ -122,9 +124,12 @@ export async function invokeLLM({
       if (event.type === 'content_block_delta' && event.delta?.text) {
         content += event.delta.text;
         chunkCount++;
-        // Log progress every 100 chunks
-        if (chunkCount % 100 === 0) {
+        // Send progress callback every 50 chunks to keep SSE connection alive
+        if (chunkCount % 50 === 0) {
           console.log(`Streaming progress: ${chunkCount} chunks, ${content.length} chars received`);
+          if (onProgress) {
+            onProgress({ chunks: chunkCount, chars: content.length });
+          }
         }
       }
     }
