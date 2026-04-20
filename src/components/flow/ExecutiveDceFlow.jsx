@@ -335,18 +335,28 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-white font-semibold text-sm">{block.title}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleCopy(block)}
-                    className="text-blue-300 border-white/20 hover:bg-white/10"
-                  >
-                    {copiedBlocks.has(block.name) ? (
-                      <><Check className="w-3 h-3 mr-1" /> Copied</>
-                    ) : (
-                      <><Copy className="w-3 h-3 mr-1" /> Copy</>
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopy(block)}
+                      className="text-blue-300 border-white/20 hover:bg-white/10"
+                    >
+                      {copiedBlocks.has(block.name) ? (
+                        <><Check className="w-3 h-3 mr-1" /> Copied</>
+                      ) : (
+                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadMarkdown(block.content, block.title || block.name)}
+                      className="text-blue-300 border-white/20 hover:bg-white/10"
+                    >
+                      <Download className="w-3 h-3 mr-1" /> Download
+                    </Button>
+                  </div>
                 </div>
                 <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
                   {block.content}
