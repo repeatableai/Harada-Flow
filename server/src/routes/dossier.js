@@ -51,8 +51,9 @@ async function debugAnthropic(req, res) {
 }
 
 const router = Router();
-router.use(authenticate);
+// Debug endpoint BEFORE auth middleware — temporary, remove after fix
 router.get('/debug-anthropic', debugAnthropic);
+router.use(authenticate);
 
 // Load the Dossier Generation Protocol from disk
 function loadDossierProtocol() {
