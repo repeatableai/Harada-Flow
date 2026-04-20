@@ -26,7 +26,9 @@ import {
   FileUp,
   ClipboardCheck,
   Sparkles,
+  Download,
 } from 'lucide-react';
+import { downloadMarkdown } from '@/lib/downloadMarkdown';
 
 export default function WorkingDeliverableFlow({ company, deliverable, sessionZeroDossier, onBack, onComplete }) {
   const { toast } = useToast();
@@ -176,21 +178,31 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
                 </span>
                 <span className="text-white text-sm font-medium">Company Dossier</span>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(sessionZeroDossier);
-                    toast({ title: 'Session 00 Dossier copied', duration: 2000 });
-                  } catch {
-                    toast({ title: 'Copy failed', variant: 'destructive' });
-                  }
-                }}
-                className="text-purple-300 border-purple-500/30 hover:bg-purple-500/10"
-              >
-                <Copy className="w-3 h-3 mr-1" /> Copy
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(sessionZeroDossier);
+                      toast({ title: 'Session 00 Dossier copied', duration: 2000 });
+                    } catch {
+                      toast({ title: 'Copy failed', variant: 'destructive' });
+                    }
+                  }}
+                  className="text-purple-300 border-purple-500/30 hover:bg-purple-500/10"
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copy
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadMarkdown(sessionZeroDossier, company?.name || 'Company-Dossier')}
+                  className="text-purple-300 border-purple-500/30 hover:bg-purple-500/10"
+                >
+                  <Download className="w-3 h-3 mr-1" /> Download
+                </Button>
+              </div>
             </div>
             <p className="text-blue-200/60 text-xs">
               Paste this dossier into your Claude session first — it provides the company context for all subsequent prompts.
