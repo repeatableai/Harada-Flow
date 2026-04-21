@@ -1045,8 +1045,8 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
   );
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className={`min-h-screen ${activeTab === 'prompts' ? 'p-2 md:p-4' : 'p-4 md:p-8'}`}>
+      <div className={`${activeTab === 'prompts' ? 'max-w-full' : 'max-w-6xl'} mx-auto`}>
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
             <Button
