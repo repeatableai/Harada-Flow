@@ -809,6 +809,14 @@ export async function inviteUser(data, callerUser) {
     },
   });
 
+  // Send invite email so the user knows they have an account
+  try {
+    const { createInviteToken } = await import('./auth.service.js');
+    await createInviteToken(user.id);
+  } catch (emailErr) {
+    console.error('Failed to send invite email (user was still created):', emailErr);
+  }
+
   return {
     id: user.id,
     email: user.email,
