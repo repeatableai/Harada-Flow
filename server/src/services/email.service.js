@@ -3,8 +3,13 @@ import config from '../config.js';
 
 let resend = null;
 
+console.log(`[Email Service] RESEND_API_KEY present: ${!!config.email.resendApiKey}, length: ${config.email.resendApiKey?.length || 0}, from: ${config.email.from}`);
+
 if (config.email.resendApiKey) {
   resend = new Resend(config.email.resendApiKey);
+  console.log('[Email Service] Resend client initialized');
+} else {
+  console.log('[Email Service] Resend client NOT initialized — emails will log to console only');
 }
 
 // Get the frontend URL for email links
@@ -124,6 +129,7 @@ export async function sendPasswordResetEmail(email, name, token) {
 
 export async function sendInviteEmail(email, name, token) {
   const inviteUrl = `${getFrontendUrl()}/set-password?token=${token}`;
+  console.log(`[sendInviteEmail] Called for ${email}, resend initialized: ${!!resend}, inviteUrl: ${inviteUrl}`);
 
   // If Resend not configured, just log to console
   if (!resend) {
