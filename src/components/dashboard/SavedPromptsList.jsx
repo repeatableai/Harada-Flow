@@ -322,7 +322,7 @@ export default function SavedPromptsList({ companyId, onPromptDeleted }) {
                               </Button>
                             </div>
                             <p className="text-xs text-gray-400 mb-2">{prompt.description}</p>
-                            <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono bg-black/20 p-2 rounded max-h-32 overflow-y-auto">
+                            <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono bg-black/20 p-2 rounded">
                               {prompt.prompt}
                             </pre>
                           </div>
