@@ -1243,7 +1243,7 @@ export default function AdminDashboard() {
 
       {/* Saved Request Details Dialog */}
       <Dialog open={!!selectedPrompt} onOpenChange={() => setSelectedPrompt(null)}>
-        <DialogContent className="sm:max-w-3xl bg-slate-900 border-white/20 text-white max-h-[80vh] overflow-hidden">
+        <DialogContent className="sm:max-w-5xl bg-slate-900 border-white/20 text-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-purple-400" />
@@ -1252,7 +1252,7 @@ export default function AdminDashboard() {
             <DialogDescription>View deliverable request information</DialogDescription>
           </DialogHeader>
           {selectedPrompt && (
-            <ScrollArea className="max-h-[60vh]">
+            <ScrollArea className="max-h-[80vh]">
               <div className="space-y-4 pr-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1321,7 +1321,7 @@ export default function AdminDashboard() {
                           {p.description && (
                             <p className="text-blue-300 text-sm mb-2">{p.description}</p>
                           )}
-                          <div className="bg-black/20 rounded p-2 text-xs text-gray-300 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                          <div className="bg-black/20 rounded p-2 text-xs text-gray-300 font-mono whitespace-pre-wrap">
                             {p.prompt}
                           </div>
                         </div>
