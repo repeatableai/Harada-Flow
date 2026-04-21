@@ -829,6 +829,20 @@ export async function inviteUser(data, callerUser) {
   };
 }
 
+export async function resetUserPassword(userId, newPassword, callerUser) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError('User not found', 404);
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+  console.log(`Password reset for ${user.email} by ${callerUser.email}`);
+  return { success: true, email: user.email };
+}
+
 // ============ User Edit/Delete/Status Functions ============
 
 export async function updateUser(userId, data, callerUser) {

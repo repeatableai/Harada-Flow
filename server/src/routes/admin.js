@@ -100,6 +100,20 @@ router.post('/users/invite', requireDepartmentAdmin, async (req, res, next) => {
   }
 });
 
+// PATCH /api/admin/users/:id/password - Reset user password (Super admin only)
+router.patch('/users/:id/password', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 8) {
+      throw new AppError('Password must be at least 8 characters', 400);
+    }
+    const result = await adminService.resetUserPassword(req.params.id, password, req.user);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PATCH /api/admin/users/:id - Update user details (edit)
 router.patch('/users/:id', requireDepartmentAdmin, async (req, res, next) => {
   try {
