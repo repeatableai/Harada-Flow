@@ -34,6 +34,8 @@ import {
   FolderOpen,
   UserPlus,
   Activity,
+  Copy,
+  CheckCircle,
 } from 'lucide-react';
 import {
   Select,
@@ -80,6 +82,7 @@ export default function AdminDashboard() {
   const [savedPromptsSearch, setSavedPromptsSearch] = useState('');
   const [savedPromptsUserFilter, setSavedPromptsUserFilter] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [copiedStepIndex, setCopiedStepIndex] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
 
   // Activity log state
@@ -109,6 +112,16 @@ export default function AdminDashboard() {
       loadAllUsers();
     }
   }, []);
+
+  const copyStepToClipboard = async (text, index) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedStepIndex(index);
+      setTimeout(() => setCopiedStepIndex(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const loadAllUsers = async () => {
     try {
@@ -1312,11 +1325,25 @@ export default function AdminDashboard() {
                     <div className="space-y-3">
                       {selectedPrompt.prompts.map((p, i) => (
                         <div key={i} className="bg-white/5 rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="border-purple-400 text-purple-300">
-                              Step {p.step || i + 1}
-                            </Badge>
-                            <p className="text-white font-medium">{p.title}</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="border-purple-400 text-purple-300">
+                                Step {p.step || i + 1}
+                              </Badge>
+                              <p className="text-white font-medium">{p.title}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyStepToClipboard(p.prompt, i)}
+                              className="text-gray-400 hover:text-white h-7 px-2"
+                            >
+                              {copiedStepIndex === i ? (
+                                <CheckCircle className="w-4 h-4 text-green-400" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
                           </div>
                           {p.description && (
                             <p className="text-blue-300 text-sm mb-2">{p.description}</p>
