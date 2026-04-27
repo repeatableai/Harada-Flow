@@ -160,7 +160,7 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
       setIsGeneratingDossier(true);
 
       try {
-        const result = await apiClient.request('/dossier/generate', {
+        const result = await apiClient.requestSSE('/dossier/generate', {
           method: 'POST',
           body: JSON.stringify({
             companyName: company.industry || 'the company',
@@ -171,7 +171,6 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
             engagementFocus: company.job_title || 'operational deliverables',
             companyId: company.id,
           }),
-          timeout: 600000,
         });
 
         setGeneratedDossier(result.content);

@@ -2,7 +2,7 @@
   "functions": {
     "api/index.mjs": {
       "includeFiles": "server/**",
-      "maxDuration": 300
+      "maxDuration": 480
     }
   },
   "rewrites": [

@@ -76,6 +76,82 @@ class ApiClient {
     }
   }
 
+  /**
+   * SSE streaming request — keeps connection alive for long-running operations.
+   * Returns a promise that resolves with the final 'complete' event data.
+   * @param {string} endpoint - API endpoint
+   * @param {object} options - fetch options (method, body, headers)
+   * @param {function} onProgress - optional callback for progress events
+   */
+  async requestSSE(endpoint, options = {}, onProgress = null) {
+    const url = `${API_BASE}${endpoint}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+
+    // Handle 401 - attempt token refresh
+    if (response.status === 401 && !options._isRetry) {
+      const refreshed = await this.refreshToken();
+      if (refreshed) {
+        return this.requestSSE(endpoint, { ...options, _isRetry: true }, onProgress);
+      }
+      window.dispatchEvent(new CustomEvent('auth-required'));
+      throw new Error('Not authenticated');
+    }
+
+    if (!response.ok && !response.headers.get('content-type')?.includes('text/event-stream')) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || error.message || 'Request failed');
+    }
+
+    // Parse SSE stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+
+      let eventType = null;
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          const data = JSON.parse(line.slice(6));
+          if (eventType === 'progress' && onProgress) {
+            onProgress(data);
+          } else if (eventType === 'complete') {
+            result = data;
+          } else if (eventType === 'error') {
+            throw new Error(data.message || 'Request failed');
+          }
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error('Stream ended without completion');
+    }
+    return result;
+  }
+
   async refreshToken() {
     // Prevent multiple concurrent refresh attempts
     if (this.refreshPromise) {

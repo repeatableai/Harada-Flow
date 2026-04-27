@@ -117,14 +117,13 @@ export default function SessionZeroDossier({ company, onComplete }) {
     setError('');
 
     try {
-      const result = await apiClient.request('/dossier/generate', {
+      const result = await apiClient.requestSSE('/dossier/generate', {
         method: 'POST',
         body: JSON.stringify({
           companyName: companyName.trim(),
           engagementFocus: engagementFocus.trim() || null,
           companyId: company.id,
         }),
-        timeout: 600000, // 10 minutes — dossier gen takes 3-5 min for F500
       });
 
       setDossierContent(result.content);

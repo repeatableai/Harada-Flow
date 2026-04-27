@@ -39,21 +39,38 @@ function loadDossierProtocol() {
 /**
  * POST /api/dossier/generate
  * Fire the Dossier Generation Protocol with web search enabled
+ * Uses SSE streaming to keep the connection alive and prevent gateway timeouts
  */
-router.post('/generate', async (req, res, next) => {
+router.post('/generate', async (req, res) => {
+  // Set SSE headers immediately to keep connection alive
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable Vercel/nginx buffering
+  res.flushHeaders();
+
+  // Send initial progress event
+  const sendProgress = (stage, message) => {
+    res.write(`event: progress\ndata: ${JSON.stringify({ stage, message })}\n\n`);
+  };
+
   try {
     const { companyName, companyUrl, jobTitle, industry, companySize, engagementFocus, companyId } = req.body;
 
     if (!companyId) {
-      throw new AppError('companyId is required', 400);
+      res.write(`event: error\ndata: ${JSON.stringify({ message: 'companyId is required' })}\n\n`);
+      return res.end();
     }
+
+    sendProgress('init', 'Verifying company access...');
 
     // Verify the company belongs to this user and load full context
     const company = await prisma.company.findFirst({
       where: { id: companyId, userId: req.user.id },
     });
     if (!company) {
-      throw new AppError('Company not found or access denied', 404);
+      res.write(`event: error\ndata: ${JSON.stringify({ message: 'Company not found or access denied' })}\n\n`);
+      return res.end();
     }
 
     // Use all available context — from request body AND stored company record
@@ -85,24 +102,38 @@ router.post('/generate', async (req, res, next) => {
     }
     userPrompt += `\n\nExecute the full 22-section dossier template with tiered web research per the protocol. The company website URL above is your primary starting point — use it to anchor all research.`;
 
+    sendProgress('research', `Researching ${resolvedCompanyName}...`);
+
     // Initialize Anthropic client
     const anthropic = new Anthropic({
       apiKey: config.anthropic.apiKey,
       timeout: 600000, // 10 minutes — dossier gen takes 3-5 min for F500
     });
 
-    // Call Claude with web_search tool enabled
-    const response = await anthropic.messages.create({
-      model: config.anthropic.model || 'claude-opus-4-6',
-      max_tokens: 32768,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      tools: [{
-        type: 'web_search_20250305',
-        name: 'web_search',
-        max_uses: 25,
-      }],
-    });
+    // Start a keepalive interval to prevent idle connection timeout
+    const keepaliveInterval = setInterval(() => {
+      sendProgress('generating', 'Generating dossier — web research in progress...');
+    }, 20000); // Send keepalive every 20 seconds
+
+    let response;
+    try {
+      // Call Claude with web_search tool enabled
+      response = await anthropic.messages.create({
+        model: config.anthropic.model || 'claude-opus-4-6',
+        max_tokens: 32768,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search',
+          max_uses: 25,
+        }],
+      });
+    } finally {
+      clearInterval(keepaliveInterval);
+    }
+
+    sendProgress('processing', 'Processing dossier content...');
 
     // Extract text from response
     let dossierContent = '';
@@ -113,7 +144,8 @@ router.post('/generate', async (req, res, next) => {
     }
 
     if (!dossierContent) {
-      throw new AppError('Dossier generation returned empty content', 500);
+      res.write(`event: error\ndata: ${JSON.stringify({ message: 'Dossier generation returned empty content' })}\n\n`);
+      return res.end();
     }
 
     // Generate filename from best available company identifier
@@ -130,14 +162,18 @@ router.post('/generate', async (req, res, next) => {
       },
     });
 
-    res.json({
+    // Send the final result
+    res.write(`event: complete\ndata: ${JSON.stringify({
       success: true,
       filename: dossierFilename,
       content: dossierContent,
       dossierStatus: 'generated',
-    });
+    })}\n\n`);
+    res.end();
   } catch (error) {
-    next(error);
+    console.error('Dossier generation error:', error);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: error.message || 'Dossier generation failed' })}\n\n`);
+    res.end();
   }
 });
 
