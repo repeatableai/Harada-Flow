@@ -172,7 +172,7 @@ export async function verifyCodeAndCreateSession(email, code, userAgent, ipAddre
     user: formatUserResponse(user),
     accessToken,
     refreshToken: refreshTokenString,
-    expiresIn: 900, // 15 minutes in seconds
+    expiresIn: 3600, // 1 hour in seconds
   };
 }
 
@@ -231,7 +231,7 @@ export async function loginWithPassword(email, password, userAgent, ipAddress) {
     user: formatUserResponse(user),
     accessToken,
     refreshToken: refreshTokenString,
-    expiresIn: 900,
+    expiresIn: 3600,
   };
 }
 
@@ -267,7 +267,7 @@ export async function refreshAccessToken(refreshToken) {
   return {
     accessToken,
     refreshToken: newRefreshTokenString,
-    expiresIn: 900,
+    expiresIn: 3600,
   };
 }
 

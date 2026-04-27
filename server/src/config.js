@@ -15,7 +15,7 @@ export default {
     refreshSecret: process.env.JWT_REFRESH_SECRET || (process.env.NODE_ENV === 'production'
       ? (() => { throw new Error('JWT_REFRESH_SECRET is required in production'); })()
       : 'dev-refresh-secret-change-in-production'),
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
     refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   },
 
