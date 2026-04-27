@@ -57,7 +57,7 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   }, [company?.id]);
 
   // Mode state
-  const [sessionModeOverride, setSessionModeOverride] = useState(company?.session_mode_override || null);
+  const [sessionModeOverride, setSessionModeOverride] = useState(company?.session_mode_override || 'AskEverySession');
   const [showModeModal, setShowModeModal] = useState(false);
   const [pendingDeliverable, setPendingDeliverable] = useState(null);
 
