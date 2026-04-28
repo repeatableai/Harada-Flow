@@ -16,7 +16,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { apiClient } from '@/api/apiClient';
 import { useToast } from '@/components/ui/use-toast';
-import GeneratedPrompts from '../deliverable/GeneratedPrompts';
 import LoadingOverlay from '../common/LoadingOverlay';
 import {
   Copy,
@@ -43,6 +42,10 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
   const [copiedBlocks, setCopiedBlocks] = useState(new Set());
   const [banner, setBanner] = useState(null);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+
+  // Prompt completion tracking (checkboxes)
+  const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [copiedSteps, setCopiedSteps] = useState(new Set());
 
   const [error, setError] = useState('');
 
@@ -229,6 +232,28 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
     }
   };
 
+  const handleCopyStep = async (prompt) => {
+    try {
+      await navigator.clipboard.writeText(prompt.prompt);
+      setCopiedSteps(prev => new Set(prev).add(prompt.step));
+      toast({ title: `Step ${prompt.step} copied`, duration: 2000 });
+    } catch {
+      toast({ title: 'Copy failed', variant: 'destructive' });
+    }
+  };
+
+  const toggleStepComplete = (step) => {
+    setCompletedSteps(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(step)) {
+        newSet.delete(step);
+      } else {
+        newSet.add(step);
+      }
+      return newSet;
+    });
+  };
+
   // ── Render ───────────────────────────────────────────────
 
   return (
@@ -403,11 +428,95 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </Card>
       )}
 
-      {/* Step 3: Show Generated Prompts */}
+      {/* Step 3: Show Generated Prompts with completion tracking */}
       {generatedPrompts && (
-        <div className="space-y-3">
-          <h3 className="text-white font-semibold text-sm">Step 2 — Your DCE Prompts (paste these after the governance blocks)</h3>
-          <GeneratedPrompts prompts={generatedPrompts} onStartOver={onBack} />
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-white font-semibold text-sm">Step 2 — Your DCE Prompts (paste these after the governance blocks)</h3>
+            <span className="text-blue-200/50 text-xs">
+              {generatedPrompts.prompts.length} steps — {completedSteps.size} of {generatedPrompts.prompts.length} complete
+            </span>
+          </div>
+
+          {/* Overview */}
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
+              <p className="text-blue-200 text-sm leading-relaxed">{generatedPrompts.overview}</p>
+            </CardContent>
+          </Card>
+
+          {/* Prompt Cards */}
+          {generatedPrompts.prompts.map((prompt) => (
+            <Card
+              key={prompt.step}
+              className={`border transition-all ${
+                completedSteps.has(prompt.step)
+                  ? 'bg-green-500/5 border-green-500/30'
+                  : 'bg-white/5 border-white/10'
+              }`}
+            >
+              <CardContent className="p-4 space-y-3">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono bg-purple-500/20 px-2 py-0.5 rounded text-purple-300">
+                      Step {prompt.step}
+                    </span>
+                    <span className="text-white text-sm font-medium">{prompt.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopyStep(prompt)}
+                      className="text-blue-300 border-white/20 hover:bg-white/10"
+                    >
+                      {copiedSteps.has(prompt.step) ? (
+                        <><Check className="w-3 h-3 mr-1" /> Copied</>
+                      ) : (
+                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <p className="text-blue-200/70 text-xs">{prompt.description}</p>
+
+                {/* Content */}
+                <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
+                  {prompt.prompt}
+                </pre>
+
+                {/* Complete checkbox */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id={`step-${prompt.step}`}
+                    checked={completedSteps.has(prompt.step)}
+                    onCheckedChange={() => toggleStepComplete(prompt.step)}
+                  />
+                  <label htmlFor={`step-${prompt.step}`} className="text-sm text-blue-200/70 cursor-pointer">
+                    I've run this step
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* How to Use */}
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-4">
+              <h3 className="text-white font-semibold text-sm mb-2 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-400" />
+                How to Use These Requests
+              </h3>
+              <div className="space-y-1 text-blue-200/70 text-xs">
+                <p>• Copy each request in sequential order and paste them into the LLM of your choice.</p>
+                <p>• Use the output from each step to inform the next.</p>
+                <p>• Check off each step as you complete it.</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
