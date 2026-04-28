@@ -358,14 +358,14 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
           {blocks.map((block) => (
             <Card key={block.name} className="bg-white/5 border-white/10">
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <span className="text-white font-semibold text-sm">{block.title}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleCopy(block)}
-                      className="text-blue-300 border-white/20 hover:bg-white/10"
+                      className="text-blue-200 border-blue-400/40 hover:bg-blue-500/20"
                     >
                       {copiedBlocks.has(block.name) ? (
                         <><Check className="w-3 h-3 mr-1" /> Copied</>
@@ -377,7 +377,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
                       size="sm"
                       variant="outline"
                       onClick={() => downloadMarkdown(block.content, block.title || block.name)}
-                      className="text-blue-300 border-white/20 hover:bg-white/10"
+                      className="text-blue-200 border-blue-400/40 hover:bg-blue-500/20"
                     >
                       <Download className="w-3 h-3 mr-1" /> Download
                     </Button>
