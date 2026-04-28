@@ -63,9 +63,7 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
 
   // Dossier pre-check state (fires before first deliverable generation)
   const [showDossierCheck, setShowDossierCheck] = useState(false);
-  const [dossierDismissed, setDossierDismissed] = useState(
-    company?.dossier_status === 'uploaded' || company?.dossier_status === 'generated'
-  );
+  const [dossierDismissed, setDossierDismissed] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [pendingDossierDeliverable, setPendingDossierDeliverable] = useState(null);
   const [pendingDossierMode, setPendingDossierMode] = useState(null);
@@ -133,7 +131,8 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
 
   // User confirms dossier check — they have files or want to proceed without
   // Generated dossier content — prepended as Session 00 prompt
-  const [generatedDossier, setGeneratedDossier] = useState(null);
+  // Load persisted dossier content from company record if available
+  const [generatedDossier, setGeneratedDossier] = useState(company?.dossier_content || null);
   const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
 
   const handleDossierConfirm = async (hasFiles) => {

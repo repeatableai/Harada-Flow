@@ -120,21 +120,20 @@ class ApiClient {
     const decoder = new TextDecoder();
     let buffer = '';
     let result = null;
+    let eventType = null;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // Keep incomplete line in buffer
-
-      let eventType = null;
+    const processLines = (lines) => {
       for (const line of lines) {
         if (line.startsWith('event: ')) {
           eventType = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6));
+          let data;
+          try {
+            data = JSON.parse(line.slice(6));
+          } catch {
+            console.warn('SSE: failed to parse data line, skipping');
+            continue;
+          }
           if (eventType === 'progress' && onProgress) {
             onProgress(data);
           } else if (eventType === 'complete') {
@@ -144,6 +143,21 @@ class ApiClient {
           }
         }
       }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // Keep incomplete line in buffer
+      processLines(lines);
+    }
+
+    // Process any remaining data in the buffer after stream ends
+    if (buffer.trim()) {
+      processLines(buffer.split('\n'));
     }
 
     if (!result) {

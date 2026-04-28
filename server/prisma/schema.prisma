@@ -83,6 +83,7 @@ model Company {
   // Session 00 — Dossier pre-check
   dossierStatus      String   @default("pending") @map("dossier_status")  // 'pending' | 'uploaded' | 'generated'
   dossierFilename    String?  @map("dossier_filename")
+  dossierContent     String?  @map("dossier_content") @db.Text
 
   // DCE mode override for this session
   sessionModeOverride String? @map("session_mode_override")  // 'Working' | 'Executive' | 'AskEverySession' | null (inherit global)

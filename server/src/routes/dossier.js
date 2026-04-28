@@ -153,12 +153,13 @@ router.post('/generate', async (req, res) => {
     const sanitizedName = nameForFile.replace(/[^a-zA-Z0-9]/g, '');
     const dossierFilename = `${sanitizedName}_Dossier_DCE1.md`;
 
-    // Update company record
+    // Update company record — persist content so it survives page reloads
     await prisma.company.update({
       where: { id: companyId },
       data: {
         dossierStatus: 'generated',
         dossierFilename,
+        dossierContent,
       },
     });
 

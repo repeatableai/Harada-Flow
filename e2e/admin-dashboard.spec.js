@@ -30,25 +30,19 @@ test.describe('Admin Dashboard Full Test', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    // Should see the auth selector
-    console.log('Looking for Super Admin button...');
-    const superAdminBtn = page.locator('text=Super Admin').first();
+    // Should see the unified login form
+    console.log('Looking for login form...');
+    const emailInput = page.locator('#email');
+    const passwordInput = page.locator('#password');
 
-    await expect(superAdminBtn).toBeVisible({ timeout: 10000 });
-    await superAdminBtn.click();
-    await page.waitForTimeout(1000);
+    await expect(emailInput).toBeVisible({ timeout: 10000 });
 
     console.log('Filling in credentials...');
-    // Fill in credentials
-    const emailInput = page.locator('#admin-email');
-    const passwordInput = page.locator('#admin-password');
-
-    await expect(emailInput).toBeVisible({ timeout: 5000 });
     await emailInput.fill(SUPER_ADMIN.email);
     await passwordInput.fill(SUPER_ADMIN.password);
 
     // Submit
-    const submitBtn = page.locator('button:has-text("Sign In as Super Admin")');
+    const submitBtn = page.locator('button:has-text("Sign In")');
     await submitBtn.click();
 
     console.log('Waiting for login to complete...');
@@ -250,18 +244,13 @@ test.describe('Admin Dashboard Full Test', () => {
     await page.goto('/');
     await page.waitForTimeout(2000);
 
-    const superAdminBtn = page.locator('text=Super Admin').first();
-    await expect(superAdminBtn).toBeVisible({ timeout: 10000 });
-    await superAdminBtn.click();
-    await page.waitForTimeout(1000);
-
-    const emailInput = page.locator('#admin-email');
-    const passwordInput = page.locator('#admin-password');
-    await expect(emailInput).toBeVisible({ timeout: 5000 });
+    const emailInput = page.locator('#email');
+    const passwordInput = page.locator('#password');
+    await expect(emailInput).toBeVisible({ timeout: 10000 });
     await emailInput.fill(SUPER_ADMIN.email);
     await passwordInput.fill(SUPER_ADMIN.password);
 
-    const submitBtn = page.locator('button:has-text("Sign In as Super Admin")');
+    const submitBtn = page.locator('button:has-text("Sign In")');
     await submitBtn.click();
     await page.waitForTimeout(5000);
 

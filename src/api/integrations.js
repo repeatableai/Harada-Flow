@@ -54,18 +54,10 @@ export const InvokeLLM = async ({
   let buffer = '';
   let result = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-
-    // Process complete SSE messages (separated by double newlines)
-    const messages = buffer.split('\n\n');
-    buffer = messages.pop(); // Keep incomplete message in buffer
-
+  const processMessages = (messages) => {
     for (const msg of messages) {
       const lines = msg.trim().split('\n');
+      if (!lines.length || !lines[0]) continue;
       let eventType = 'message';
       let data = '';
 
@@ -78,13 +70,39 @@ export const InvokeLLM = async ({
       }
 
       if (eventType === 'complete' && data) {
-        result = JSON.parse(data);
+        try {
+          result = JSON.parse(data);
+        } catch {
+          console.warn('SSE: failed to parse complete event data');
+        }
       } else if (eventType === 'error' && data) {
-        const err = JSON.parse(data);
+        let err;
+        try {
+          err = JSON.parse(data);
+        } catch {
+          throw new Error('LLM request failed');
+        }
         throw new Error(err.message || 'LLM request failed');
       }
       // 'progress' events are keepalives — ignore on frontend
     }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Process complete SSE messages (separated by double newlines)
+    const messages = buffer.split('\n\n');
+    buffer = messages.pop(); // Keep incomplete message in buffer
+    processMessages(messages);
+  }
+
+  // Process any remaining data in the buffer after stream ends
+  if (buffer.trim()) {
+    processMessages(buffer.split('\n\n'));
   }
 
   if (!result) {

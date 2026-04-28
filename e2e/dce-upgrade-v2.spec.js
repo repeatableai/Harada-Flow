@@ -1,7 +1,7 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:5175';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5176';
 const LOGIN_EMAIL = 'kevin@repeatable.ai';
 const LOGIN_PASSWORD = '123456';
 // Non-admin user for UI tests that need the home page (admin gets redirected to /admin)
