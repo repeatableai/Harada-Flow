@@ -64,13 +64,6 @@ export default function PerplexityPromptStep({ company, deliverable, onGenerated
 
       const result = await InvokeLLM({
         prompt: rendered,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            research_brief: { type: "string" }
-          },
-          required: ["research_brief"]
-        },
         add_context_from_internet: !!company.company_url,
         operationType: 'perplexity_research_brief',
         operationName: deliverable.name,
@@ -80,8 +73,11 @@ export default function PerplexityPromptStep({ company, deliverable, onGenerated
         deliverableName: deliverable.name,
       });
 
-      const brief = result.research_brief || result;
-      setGeneratedPrompt(typeof brief === 'string' ? brief : JSON.stringify(brief, null, 2));
+      // The LLM returns the brief as plain text (possibly wrapped in backticks)
+      const raw = typeof result === 'string' ? result : (result.research_brief || result.text || JSON.stringify(result, null, 2));
+      // Strip leading/trailing triple backticks if present
+      const brief = raw.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+      setGeneratedPrompt(brief);
 
       toast({
         title: 'Research brief generated',
