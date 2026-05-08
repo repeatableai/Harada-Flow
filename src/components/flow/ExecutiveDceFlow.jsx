@@ -27,8 +27,10 @@ import {
   Info,
   Sparkles,
   Download,
+  Search,
 } from 'lucide-react';
 import { downloadMarkdown } from '@/lib/downloadMarkdown';
+import PerplexityPromptStep from './PerplexityPromptStep';
 
 export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDossier, onBack, onComplete }) {
   const { toast } = useToast();
@@ -42,6 +44,10 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
   const [copiedBlocks, setCopiedBlocks] = useState(new Set());
   const [banner, setBanner] = useState(null);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+
+  // Perplexity research step state
+  const [perplexityBrief, setPerplexityBrief] = useState(null);
+  const [perplexityCompleted, setPerplexityCompleted] = useState(false);
 
   // Prompt completion tracking (checkboxes)
   const [completedSteps, setCompletedSteps] = useState(new Set());
@@ -145,7 +151,17 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
           });
         }
 
-        // Steps 1-8: Generated prompts (renumber to follow dossier + blocks)
+        // Perplexity Research Brief (if generated)
+        if (perplexityBrief) {
+          allPrompts.push({
+            step: allPrompts.length,
+            title: 'Perplexity Deep Research Brief',
+            description: 'Copy this into Perplexity deep research. Bring the results back into your Claude session before running the executive prompts.',
+            prompt: perplexityBrief,
+          });
+        }
+
+        // Steps 1-8: Generated prompts (renumber to follow dossier + blocks + perplexity)
         const offset = allPrompts.length;
         result.prompts.forEach((p, i) => {
           allPrompts.push({
@@ -274,7 +290,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
             <Crown className="w-3 h-3" /> Executive Mode
           </span>
           <span className="text-blue-200/50 text-xs">
-            8 DCE prompts + governance blocks
+            8 DCE prompts + governance blocks + research brief
           </span>
         </div>
       </div>
@@ -399,11 +415,30 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </div>
       )}
 
-      {/* Step 2: Generate 8-Prompt Pack */}
-      {!generatedPrompts && (
+      {/* Step 2: Perplexity Research Brief */}
+      {!perplexityCompleted && (
+        <div className="space-y-3">
+          <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+            <Search className="w-4 h-4 text-cyan-400" />
+            Step 2 — Perplexity Deep Research
+          </h3>
+          <PerplexityPromptStep
+            company={company}
+            deliverable={deliverable}
+            onGenerated={(brief) => {
+              setPerplexityBrief(brief);
+              setPerplexityCompleted(true);
+            }}
+            onSkip={() => setPerplexityCompleted(true)}
+          />
+        </div>
+      )}
+
+      {/* Step 3: Generate 8-Prompt Pack (visible after Perplexity step) */}
+      {perplexityCompleted && !generatedPrompts && (
         <Card className="bg-white/5 border-white/10">
           <CardContent className="p-6 text-center space-y-4">
-            <h3 className="text-white font-semibold text-sm">Step 2 — Generate DCE Prompts</h3>
+            <h3 className="text-white font-semibold text-sm">Step 3 — Generate DCE Prompts</h3>
             <div className="bg-white/5 rounded-lg p-4">
               <h3 className="text-lg font-bold text-white mb-2">{deliverable.name}</h3>
               <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">
@@ -411,7 +446,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
               </span>
             </div>
             <p className="text-blue-200/70 text-sm">
-              After pasting the governance blocks above, generate 8 comprehensive DCE prompts for this deliverable.
+              After pasting the governance blocks{perplexityBrief ? ' and Perplexity research results' : ''} above, generate 8 comprehensive DCE prompts for this deliverable.
             </p>
             {error && (
               <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-300 text-sm">{error}</div>
@@ -428,11 +463,11 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </Card>
       )}
 
-      {/* Step 3: Show Generated Prompts with completion tracking */}
+      {/* Show Generated Prompts with completion tracking */}
       {generatedPrompts && (
         <div className="space-y-4">
           <div>
-            <h3 className="text-white font-semibold text-sm">Step 2 — Your DCE Prompts (paste these after the governance blocks)</h3>
+            <h3 className="text-white font-semibold text-sm">Step 3 — Your DCE Prompts (paste these after the governance blocks{perplexityBrief ? ' and research results' : ''})</h3>
             <span className="text-blue-200/50 text-xs">
               {generatedPrompts.prompts.length} steps — {completedSteps.size} of {generatedPrompts.prompts.length} complete
             </span>

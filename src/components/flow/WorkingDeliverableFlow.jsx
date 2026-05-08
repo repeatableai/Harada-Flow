@@ -30,10 +30,16 @@ import {
   Download,
 } from 'lucide-react';
 import { downloadMarkdown } from '@/lib/downloadMarkdown';
+import PerplexityPromptStep from './PerplexityPromptStep';
 
 export default function WorkingDeliverableFlow({ company, deliverable, sessionZeroDossier, onBack, onComplete }) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Perplexity step state — shown before chunk generation
+  const [phase, setPhase] = useState('perplexity'); // 'perplexity' | 'chunks'
+  const [perplexityBrief, setPerplexityBrief] = useState(null);
+
+  const [isLoading, setIsLoading] = useState(false);
   const [chunks, setChunks] = useState([]);
   const [completedChunks, setCompletedChunks] = useState(new Set());
   const [copiedChunks, setCopiedChunks] = useState(new Set());
@@ -44,9 +50,12 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
   const allComplete = chunks.length > 0 && completedChunks.size === chunks.length;
   const hasSequenceComplete = chunks.some(c => c.isSequenceComplete);
 
+  // Start chunk generation when entering 'chunks' phase
   useEffect(() => {
-    generateChunks();
-  }, []);
+    if (phase === 'chunks' && chunks.length === 0) {
+      generateChunks();
+    }
+  }, [phase]);
 
   const generateChunks = async () => {
     setIsLoading(true);
@@ -78,6 +87,16 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
             title: 'Session 00 — Company Dossier',
             description: 'Paste this dossier into your Claude session first — it provides the company context for everything that follows.',
             prompt: sessionZeroDossier,
+          });
+        }
+
+        // Perplexity Research Brief (if generated)
+        if (perplexityBrief) {
+          allPrompts.push({
+            step: allPrompts.length,
+            title: 'Perplexity Deep Research Brief',
+            description: 'Copy this into Perplexity deep research. Bring the results back into your Claude session before running the prompts below.',
+            prompt: perplexityBrief,
           });
         }
 
@@ -159,6 +178,37 @@ export default function WorkingDeliverableFlow({ company, deliverable, sessionZe
       setIsSubmitting(false);
     }
   };
+
+  // ── Perplexity Step ──────────────────────────────────────
+
+  if (phase === 'perplexity') {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        {/* Header */}
+        <div>
+          <Button variant="ghost" onClick={onBack} className="text-blue-300 hover:text-white mb-2 -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-1" /> Back to Matrix
+          </Button>
+          <h2 className="text-xl font-bold text-white">{deliverable.name}</h2>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs px-2 py-0.5 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300">
+              Working Mode
+            </span>
+          </div>
+        </div>
+
+        <PerplexityPromptStep
+          company={company}
+          deliverable={deliverable}
+          onGenerated={(brief) => {
+            setPerplexityBrief(brief);
+            setPhase('chunks');
+          }}
+          onSkip={() => setPhase('chunks')}
+        />
+      </div>
+    );
+  }
 
   // ── Loading ──────────────────────────────────────────────
 
