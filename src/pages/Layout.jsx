@@ -156,7 +156,7 @@ export default function Layout({ children }) {
                     title={!isLoading && !hasPermission('can_start_new_role') ? "You don't have permission to start a new role" : "Start a new role session"}
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
-                    New Role
+                    Roles
                   </Button>
               </Link>
 

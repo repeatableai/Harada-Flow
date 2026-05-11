@@ -633,7 +633,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-300"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                New Role
+                Roles
               </TabsTrigger>
               <TabsTrigger
                 value="sessions"
