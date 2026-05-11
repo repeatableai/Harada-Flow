@@ -69,15 +69,72 @@ The FINAL chunk must:
 - Emit the machine-readable marker "[SEQUENCE_COMPLETE]" on the last line`;
 
 /**
- * POST /api/deliverable/working
- * Generate 3-7 copy-paste chunks for a deliverable
+ * Parse chunk headers from accumulated text.
+ * Returns array of { index, number, total, purpose, headerLength }.
  */
-router.post('/working', async (req, res, next) => {
+function parseChunkHeaders(text) {
+  const chunkRegex = /(?:^|\n)\s*(?:#{2,3}\s*)?(?:\*\*)?chunk\s*(?:prompt\s*)?(\d+)(?:\s*(?:of|\/)\s*(\d+))?(?:\*\*)?[\s:—–\-]*([^\n]*)/gi;
+  const matches = [];
+  let match;
+  while ((match = chunkRegex.exec(text)) !== null) {
+    matches.push({
+      index: match.index,
+      number: parseInt(match[1]),
+      total: match[2] ? parseInt(match[2]) : null,
+      purpose: (match[3] || '').trim() || `Chunk ${match[1]}`,
+      headerLength: match[0].length,
+    });
+  }
+  // Deduplicate — if same chunk number appears multiple times, keep first
+  const seen = new Set();
+  return matches.filter(m => {
+    if (seen.has(m.number)) return false;
+    seen.add(m.number);
+    return true;
+  });
+}
+
+/**
+ * Extract a complete chunk object from parsed headers + full text.
+ */
+function extractChunk(headers, index, fullText) {
+  const start = headers[index].index + headers[index].headerLength;
+  const end = index < headers.length - 1 ? headers[index + 1].index : fullText.length;
+  const content = fullText.substring(start, end).trim();
+  const containsMcq = /\b[A-G]\)\s|options?\s*(?:labeled|are)\s|choose\s+(?:one|from)/i.test(content);
+  return {
+    number: headers[index].number,
+    total: headers[index].total || headers.length,
+    purpose: headers[index].purpose,
+    content,
+    containsMcq,
+    isSequenceComplete: content.includes('[SEQUENCE_COMPLETE]'),
+  };
+}
+
+/**
+ * POST /api/deliverable/working
+ * Generate 3-7 copy-paste chunks for a deliverable.
+ * Uses SSE to stream each chunk progressively as it's parsed.
+ */
+router.post('/working', async (req, res) => {
+  // Set SSE headers immediately to keep connection alive
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const sendEvent = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   try {
     const { companyId, deliverableName, deliverableType, category, description, estHoursHuman, estHoursAI, aiOpportunity } = req.body;
 
     if (!companyId || !deliverableName) {
-      throw new AppError('companyId and deliverableName are required', 400);
+      sendEvent('error', { message: 'companyId and deliverableName are required' });
+      return res.end();
     }
 
     // Load company context
@@ -85,8 +142,11 @@ router.post('/working', async (req, res, next) => {
       where: { id: companyId, userId: req.user.id },
     });
     if (!company) {
-      throw new AppError('Company not found or access denied', 404);
+      sendEvent('error', { message: 'Company not found or access denied' });
+      return res.end();
     }
+
+    sendEvent('progress', { stage: 'generating', message: 'Generating prompt chunks...' });
 
     const userPrompt = `DELIVERABLE: ${deliverableName}
 CATEGORY: ${category || 'General'}
@@ -111,62 +171,53 @@ Generate the dynamic chunk sequence now.`;
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    // Accumulate streamed text
+    // Accumulate streamed text and emit chunks progressively
     let fullText = '';
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta?.text) {
-        fullText += event.delta.text;
+    let emittedChunkCount = 0;
+
+    // Send keepalive every 20 seconds
+    const keepaliveInterval = setInterval(() => {
+      sendEvent('progress', { stage: 'generating', message: 'Still generating chunks...' });
+    }, 20000);
+
+    try {
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta?.text) {
+          fullText += event.delta.text;
+
+          // Incrementally parse — check if we have a new complete chunk
+          const headers = parseChunkHeaders(fullText);
+          // A chunk at index i is "complete" if there's a chunk at index i+1
+          // (meaning we've moved past it)
+          if (headers.length > emittedChunkCount + 1) {
+            // We have at least one new complete chunk to emit
+            for (let i = emittedChunkCount; i < headers.length - 1; i++) {
+              const chunk = extractChunk(headers, i, fullText);
+              // Update total based on latest header info
+              chunk.total = headers[headers.length - 1].total || headers.length;
+              sendEvent('chunk', chunk);
+              emittedChunkCount++;
+            }
+          }
+        }
+      }
+    } finally {
+      clearInterval(keepaliveInterval);
+    }
+
+    // Emit the final chunk (the last one has no successor during streaming)
+    const finalHeaders = parseChunkHeaders(fullText);
+    if (finalHeaders.length > emittedChunkCount) {
+      for (let i = emittedChunkCount; i < finalHeaders.length; i++) {
+        const chunk = extractChunk(finalHeaders, i, fullText);
+        chunk.total = finalHeaders.length;
+        sendEvent('chunk', chunk);
       }
     }
 
-    // Parse chunks — flexible regex to handle Claude's varied header formats:
-    // "### Chunk 1 of 5 — Purpose", "### CHUNK PROMPT 1:", "## Chunk 1/5: Purpose",
-    // "### Chunk 1 of 5", "**Chunk 1 of 5**", etc.
-    const chunkRegex = /(?:^|\n)\s*(?:#{2,3}\s*)?(?:\*\*)?chunk\s*(?:prompt\s*)?(\d+)(?:\s*(?:of|\/)\s*(\d+))?(?:\*\*)?[\s:—–\-]*([^\n]*)/gi;
-    const chunks = [];
-    const matches = [];
-    let match;
-
-    while ((match = chunkRegex.exec(fullText)) !== null) {
-      matches.push({
-        index: match.index,
-        number: parseInt(match[1]),
-        total: match[2] ? parseInt(match[2]) : null,
-        purpose: (match[3] || '').trim() || `Chunk ${match[1]}`,
-        headerLength: match[0].length,
-      });
-    }
-
-    // Deduplicate — if same chunk number appears multiple times, keep first
-    const seen = new Set();
-    const dedupedMatches = matches.filter(m => {
-      if (seen.has(m.number)) return false;
-      seen.add(m.number);
-      return true;
-    });
-
-    const totalChunkCount = dedupedMatches.length;
-    for (let i = 0; i < dedupedMatches.length; i++) {
-      const start = dedupedMatches[i].index + dedupedMatches[i].headerLength;
-      const end = i < dedupedMatches.length - 1 ? dedupedMatches[i + 1].index : fullText.length;
-      const content = fullText.substring(start, end).trim();
-
-      // Check for MCQ patterns
-      const containsMcq = /\b[A-G]\)\s|options?\s*(?:labeled|are)\s|choose\s+(?:one|from)/i.test(content);
-
-      chunks.push({
-        number: dedupedMatches[i].number,
-        total: dedupedMatches[i].total || totalChunkCount,
-        purpose: dedupedMatches[i].purpose,
-        content,
-        containsMcq,
-        isSequenceComplete: content.includes('[SEQUENCE_COMPLETE]'),
-      });
-    }
-
-    // If no chunk headers found, treat entire response as one chunk
-    if (chunks.length === 0) {
-      chunks.push({
+    // If no chunk headers found at all, treat entire response as one chunk
+    if (finalHeaders.length === 0) {
+      sendEvent('chunk', {
         number: 1,
         total: 1,
         purpose: 'Complete Deliverable',
@@ -176,14 +227,21 @@ Generate the dynamic chunk sequence now.`;
       });
     }
 
-    res.json({
-      chunks,
-      totalChunks: chunks.length,
+    // Send completion event with metadata
+    const allChunks = finalHeaders.length > 0
+      ? finalHeaders.map((_, i) => extractChunk(finalHeaders, i, fullText))
+      : [{ number: 1, total: 1, purpose: 'Complete Deliverable', content: fullText, containsMcq: false, isSequenceComplete: fullText.includes('[SEQUENCE_COMPLETE]') }];
+
+    sendEvent('complete', {
+      totalChunks: allChunks.length,
       deliverableName,
       companyId,
     });
+    res.end();
   } catch (error) {
-    next(error);
+    console.error('Working deliverable error:', error);
+    sendEvent('error', { message: error.message || 'Failed to generate chunks' });
+    res.end();
   }
 });
 

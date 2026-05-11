@@ -1,8 +1,11 @@
 /**
- * Executive DCE Flow (B.5)
+ * Executive DCE Flow (B.5) — Parallel Generation
  *
  * Executive mode = the existing 8-prompt DCE generation PLUS Block A and Block B
  * as supplementary copy-paste cards. The comprehensive path.
+ *
+ * Optimization: Perplexity research brief and 8-prompt generation fire in parallel
+ * when the user clicks "Generate Executive Prompts", eliminating the sequential wait.
  *
  * Pre-flight checklist is displayed as informational guidance (not a gate).
  * ACD and Registry auto-fire on completion (no user-elect prompt).
@@ -28,15 +31,18 @@ import {
   Sparkles,
   Download,
   Search,
+  SkipForward,
 } from 'lucide-react';
 import { downloadMarkdown } from '@/lib/downloadMarkdown';
-import PerplexityPromptStep from './PerplexityPromptStep';
+import { generatePerplexityBrief } from '@/utils/generatePerplexityBrief';
 
 export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDossier, onBack, onComplete }) {
   const { toast } = useToast();
 
-  // 8-prompt generation state (the existing DCE flow)
+  // 8-prompt generation state
   const [isGenerating, setIsGenerating] = useState(false);
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [perplexityLoading, setPerplexityLoading] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState(null);
 
   // Block A + B supplementary cards
@@ -45,9 +51,9 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
   const [banner, setBanner] = useState(null);
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
 
-  // Perplexity research step state
+  // Perplexity research brief
   const [perplexityBrief, setPerplexityBrief] = useState(null);
-  const [perplexityCompleted, setPerplexityCompleted] = useState(false);
+  const [perplexityError, setPerplexityError] = useState('');
 
   // Prompt completion tracking (checkboxes)
   const [completedSteps, setCompletedSteps] = useState(new Set());
@@ -73,148 +79,13 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
       setBlocks(result.blocks || []);
       setBanner(result.banner || null);
     } catch (err) {
-      // Non-critical — blocks are supplementary
       console.error('Failed to load executive blocks:', err);
     } finally {
       setIsLoadingBlocks(false);
     }
   };
 
-  // Generate the 8-prompt DCE pack (the existing core flow)
-  const generatePrompts = async () => {
-    if (!deliverable || !company) return;
-    setIsGenerating(true);
-    setError('');
-
-    try {
-      const prompt = buildPrompt();
-
-      const result = await InvokeLLM({
-        prompt,
-        add_context_from_internet: !!company.company_url,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            deliverable_name: { type: "string" },
-            overview: { type: "string" },
-            prompts: {
-              type: "array",
-              minItems: 8,
-              maxItems: 8,
-              items: {
-                type: "object",
-                properties: {
-                  step: { type: "number" },
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  prompt: { type: "string" }
-                },
-                required: ["step", "title", "description", "prompt"]
-              }
-            }
-          },
-          required: ["deliverable_name", "overview", "prompts"]
-        },
-        operationType: 'deliverable_prompts',
-        operationName: deliverable.name,
-        companyId: company.id,
-        industry: company.industry,
-        companySize: company.company_size,
-        deliverableName: deliverable.name,
-      });
-
-      setGeneratedPrompts(result);
-
-      // Auto-save prompts — include dossier + Block A/B + the 8 generated steps
-      try {
-        const allPrompts = [];
-
-        // Step 0: Session 00 Dossier (if generated)
-        if (sessionZeroDossier) {
-          allPrompts.push({
-            step: 0,
-            title: 'Session 00 — Company Dossier',
-            description: 'Paste this dossier into your Claude session first — it provides the company context for everything that follows.',
-            prompt: sessionZeroDossier,
-          });
-        }
-
-        // Block A & B cards (loaded on mount)
-        if (blocks && blocks.length > 0) {
-          blocks.forEach((block, i) => {
-            allPrompts.push({
-              step: allPrompts.length,
-              title: block.title || `Block ${String.fromCharCode(65 + i)}`,
-              description: block.description || `Supplementary block ${String.fromCharCode(65 + i)}`,
-              prompt: block.content || block.prompt || '',
-            });
-          });
-        }
-
-        // Perplexity Research Brief (if generated)
-        if (perplexityBrief) {
-          allPrompts.push({
-            step: allPrompts.length,
-            title: 'Perplexity Deep Research Brief',
-            description: 'Copy this into Perplexity deep research. Bring the results back into your Claude session before running the executive prompts.',
-            prompt: perplexityBrief,
-          });
-        }
-
-        // Steps 1-8: Generated prompts (renumber to follow dossier + blocks + perplexity)
-        const offset = allPrompts.length;
-        result.prompts.forEach((p, i) => {
-          allPrompts.push({
-            ...p,
-            step: offset + i + 1,
-          });
-        });
-
-        await SavedPrompt.create(company.id, {
-          deliverable_name: deliverable.name,
-          deliverable_type: deliverable.type,
-          column_name: deliverable.column || null,
-          overview: result.overview,
-          prompts: allPrompts,
-          is_custom: deliverable.isCustom || false,
-          custom_input: deliverable.isCustom ? deliverable.name : null,
-        });
-      } catch (saveErr) {
-        console.error('ExecutiveDceFlow: failed to save prompts:', saveErr);
-      }
-
-      // Auto-fire ACD + Registry (Executive mode — no user choice)
-      try {
-        await apiClient.request('/deliverable/working/complete', {
-          method: 'POST',
-          body: JSON.stringify({
-            companyId: company.id,
-            deliverableName: deliverable.name,
-            acdRegistryChoice: 'C', // Both — auto-fire in Executive mode
-          }),
-        });
-      } catch {
-        // Non-critical
-      }
-
-      toast({
-        title: "Prompts generated",
-        description: "8 DCE prompts created. ACD and Registry auto-logged.",
-        duration: 4000,
-      });
-    } catch (err) {
-      setError(err.message || 'Failed to generate prompts');
-      toast({
-        title: "Error",
-        description: "Failed to generate prompts. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Build the 8-prompt system prompt (same as DeliverableCreatorStep)
+  // Build the 8-prompt system prompt
   const buildPrompt = () => {
     return `You are an expert AI consultant specializing in creating detailed, actionable deliverable creation prompts.
 
@@ -236,6 +107,174 @@ Use [SYN] markers for any synthetic/placeholder data.
 Return as JSON with deliverable_name, overview, and prompts array (8 items with step, title, description, prompt).
 
 CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
+  };
+
+  /**
+   * Save prompts with all components (dossier + blocks + perplexity + 8 prompts).
+   */
+  const savePrompts = async (result, brief) => {
+    try {
+      const allPrompts = [];
+
+      // Step 0: Session 00 Dossier (if generated)
+      if (sessionZeroDossier) {
+        allPrompts.push({
+          step: 0,
+          title: 'Session 00 — Company Dossier',
+          description: 'Paste this dossier into your Claude session first — it provides the company context for everything that follows.',
+          prompt: sessionZeroDossier,
+        });
+      }
+
+      // Block A & B cards (loaded on mount)
+      if (blocks && blocks.length > 0) {
+        blocks.forEach((block, i) => {
+          allPrompts.push({
+            step: allPrompts.length,
+            title: block.title || `Block ${String.fromCharCode(65 + i)}`,
+            description: block.description || `Supplementary block ${String.fromCharCode(65 + i)}`,
+            prompt: block.content || block.prompt || '',
+          });
+        });
+      }
+
+      // Perplexity Research Brief (if generated)
+      if (brief) {
+        allPrompts.push({
+          step: allPrompts.length,
+          title: 'Perplexity Deep Research Brief',
+          description: 'Copy this into Perplexity deep research. Bring the results back into your Claude session before running the executive prompts.',
+          prompt: brief,
+        });
+      }
+
+      // Steps 1-8: Generated prompts
+      const offset = allPrompts.length;
+      result.prompts.forEach((p, i) => {
+        allPrompts.push({
+          ...p,
+          step: offset + i + 1,
+        });
+      });
+
+      await SavedPrompt.create(company.id, {
+        deliverable_name: deliverable.name,
+        deliverable_type: deliverable.type,
+        column_name: deliverable.column || null,
+        overview: result.overview,
+        prompts: allPrompts,
+        is_custom: deliverable.isCustom || false,
+        custom_input: deliverable.isCustom ? deliverable.name : null,
+      });
+    } catch (saveErr) {
+      console.error('ExecutiveDceFlow: failed to save prompts:', saveErr);
+    }
+  };
+
+  /**
+   * Fire Perplexity brief + 8-prompt generation in parallel.
+   */
+  const handleGenerate = async (includePerplexity = true) => {
+    if (!deliverable || !company) return;
+    setIsGenerating(true);
+    setError('');
+    setPerplexityError('');
+
+    // Task 1: 8-prompt generation (always runs)
+    setPromptsLoading(true);
+    const promptTask = InvokeLLM({
+      prompt: buildPrompt(),
+      add_context_from_internet: !!company.company_url,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          deliverable_name: { type: "string" },
+          overview: { type: "string" },
+          prompts: {
+            type: "array",
+            minItems: 8,
+            maxItems: 8,
+            items: {
+              type: "object",
+              properties: {
+                step: { type: "number" },
+                title: { type: "string" },
+                description: { type: "string" },
+                prompt: { type: "string" }
+              },
+              required: ["step", "title", "description", "prompt"]
+            }
+          }
+        },
+        required: ["deliverable_name", "overview", "prompts"]
+      },
+      operationType: 'deliverable_prompts',
+      operationName: deliverable.name,
+      companyId: company.id,
+      industry: company.industry,
+      companySize: company.company_size,
+      deliverableName: deliverable.name,
+    }).then((result) => {
+      setGeneratedPrompts(result);
+      setPromptsLoading(false);
+      return result;
+    }).catch((err) => {
+      setPromptsLoading(false);
+      setError(err.message || 'Failed to generate prompts');
+      return null;
+    });
+
+    // Task 2: Perplexity brief (optional, runs in parallel)
+    let perplexityTask = Promise.resolve(null);
+    if (includePerplexity) {
+      setPerplexityLoading(true);
+      perplexityTask = generatePerplexityBrief({ company, deliverable })
+        .then((brief) => {
+          setPerplexityBrief(brief);
+          setPerplexityLoading(false);
+          return brief;
+        })
+        .catch((err) => {
+          setPerplexityLoading(false);
+          setPerplexityError(err.message || 'Failed to generate research brief');
+          return null;
+        });
+    }
+
+    // Wait for both to complete
+    const [result, brief] = await Promise.all([promptTask, perplexityTask]);
+
+    if (result) {
+      await savePrompts(result, brief);
+
+      // Auto-fire ACD + Registry (Executive mode — no user choice)
+      try {
+        await apiClient.request('/deliverable/working/complete', {
+          method: 'POST',
+          body: JSON.stringify({
+            companyId: company.id,
+            deliverableName: deliverable.name,
+            acdRegistryChoice: 'C',
+          }),
+        });
+      } catch {
+        // Non-critical
+      }
+
+      toast({
+        title: "Prompts generated",
+        description: `8 DCE prompts created${brief ? ' + research brief' : ''}. ACD and Registry auto-logged.`,
+        duration: 4000,
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to generate prompts. Please try again.",
+        variant: "destructive",
+      });
+    }
+
+    setIsGenerating(false);
   };
 
   const handleCopy = async (block) => {
@@ -276,7 +315,21 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Loading overlay for prompt generation */}
       {isGenerating && (
-        <LoadingOverlay message="Generating 8 comprehensive DCE prompts... This may take 2-3 minutes." />
+        <LoadingOverlay message={
+          <div className="space-y-2 text-center">
+            <p>Generating in parallel...</p>
+            <div className="flex flex-col items-center gap-1 text-sm opacity-70">
+              <span className={promptsLoading ? 'text-blue-300' : 'text-green-400'}>
+                {promptsLoading ? '⏳ 8 DCE prompts generating...' : '✓ 8 DCE prompts ready'}
+              </span>
+              {(perplexityLoading || perplexityBrief || perplexityError) && (
+                <span className={perplexityLoading ? 'text-blue-300' : perplexityBrief ? 'text-green-400' : 'text-amber-400'}>
+                  {perplexityLoading ? '⏳ Research brief generating...' : perplexityBrief ? '✓ Research brief ready' : '⚠ Research brief failed'}
+                </span>
+              )}
+            </div>
+          </div>
+        } />
       )}
 
       {/* Header */}
@@ -295,7 +348,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </div>
       </div>
 
-      {/* Pre-flight guidance (informational, not a gate) */}
+      {/* Pre-flight guidance */}
       {banner && (
         <Card className="bg-blue-500/5 border-blue-500/20">
           <CardContent className="p-4">
@@ -313,7 +366,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </Card>
       )}
 
-      {/* Session 00 — Generated Dossier (paste first if no user files) */}
+      {/* Session 00 — Generated Dossier */}
       {sessionZeroDossier && (
         <Card className="bg-purple-500/5 border-purple-500/30">
           <CardContent className="p-4 space-y-3">
@@ -360,7 +413,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </Card>
       )}
 
-      {/* Step 1: Governance Blocks (A + B) — paste these FIRST */}
+      {/* Step 1: Governance Blocks (A + B) */}
       {blocks.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-white font-semibold text-sm flex items-center gap-2">
@@ -415,30 +468,11 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
         </div>
       )}
 
-      {/* Step 2: Perplexity Research Brief */}
-      {!perplexityCompleted && (
-        <div className="space-y-3">
-          <h3 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Search className="w-4 h-4 text-cyan-400" />
-            Step 2 — Perplexity Deep Research
-          </h3>
-          <PerplexityPromptStep
-            company={company}
-            deliverable={deliverable}
-            onGenerated={(brief) => {
-              setPerplexityBrief(brief);
-              setPerplexityCompleted(true);
-            }}
-            onSkip={() => setPerplexityCompleted(true)}
-          />
-        </div>
-      )}
-
-      {/* Step 3: Generate 8-Prompt Pack (visible after Perplexity step) */}
-      {perplexityCompleted && !generatedPrompts && (
+      {/* Step 2: Generate Executive Prompts (Perplexity + 8 prompts in parallel) */}
+      {!generatedPrompts && !isGenerating && (
         <Card className="bg-white/5 border-white/10">
           <CardContent className="p-6 text-center space-y-4">
-            <h3 className="text-white font-semibold text-sm">Step 3 — Generate DCE Prompts</h3>
+            <h3 className="text-white font-semibold text-sm">Step 2 — Generate DCE Prompts</h3>
             <div className="bg-white/5 rounded-lg p-4">
               <h3 className="text-lg font-bold text-white mb-2">{deliverable.name}</h3>
               <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-300 rounded">
@@ -446,28 +480,99 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
               </span>
             </div>
             <p className="text-blue-200/70 text-sm">
-              After pasting the governance blocks{perplexityBrief ? ' and Perplexity research results' : ''} above, generate 8 comprehensive DCE prompts for this deliverable.
+              Generate 8 comprehensive DCE prompts and a Perplexity research brief simultaneously.
+              Both run in parallel so you're not waiting twice.
             </p>
             {error && (
               <div className="p-3 bg-red-500/20 border border-red-500/50 rounded text-red-300 text-sm">{error}</div>
             )}
-            <Button
-              onClick={generatePrompts}
-              disabled={isGenerating}
-              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Generate Executive Prompts
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Button
+                onClick={() => handleGenerate(true)}
+                disabled={isGenerating}
+                className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-6"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Generate with Research Brief
+              </Button>
+
+              <Button
+                onClick={() => handleGenerate(false)}
+                disabled={isGenerating}
+                variant="ghost"
+                className="text-blue-200/50 hover:text-white"
+              >
+                <SkipForward className="w-4 h-4 mr-2" />
+                Generate without Research
+              </Button>
+            </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Perplexity Research Brief (appears when ready, even before prompts) */}
+      {perplexityBrief && (
+        <Card className="bg-cyan-500/5 border-cyan-500/30">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono bg-cyan-500/20 px-2 py-0.5 rounded text-cyan-300">
+                  Perplexity Brief
+                </span>
+                <span className="text-white text-sm font-medium">
+                  Deep Research Prompt — {deliverable.name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(perplexityBrief);
+                      toast({ title: 'Research brief copied', duration: 2000 });
+                    } catch {
+                      toast({ title: 'Copy failed', variant: 'destructive' });
+                    }
+                  }}
+                  className="text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copy
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadMarkdown(perplexityBrief, `Perplexity-Brief-${deliverable.name}`)}
+                  className="text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
+                >
+                  <Download className="w-3 h-3 mr-1" /> Download
+                </Button>
+              </div>
+            </div>
+            <p className="text-blue-200/60 text-xs">
+              Copy this brief and paste it into Perplexity's deep research. Bring the results back
+              into your Claude session before running the executive prompts below.
+            </p>
+            <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto max-h-96 whitespace-pre-wrap font-mono">
+              {perplexityBrief}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {perplexityError && !isGenerating && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded text-amber-300 text-xs">
+          Research brief generation failed: {perplexityError}. Executive prompts are unaffected.
+        </div>
       )}
 
       {/* Show Generated Prompts with completion tracking */}
       {generatedPrompts && (
         <div className="space-y-4">
           <div>
-            <h3 className="text-white font-semibold text-sm">Step 3 — Your DCE Prompts (paste these after the governance blocks{perplexityBrief ? ' and research results' : ''})</h3>
+            <h3 className="text-white font-semibold text-sm">
+              {perplexityBrief ? 'Step 3' : 'Step 2'} — Your DCE Prompts (paste these after the governance blocks{perplexityBrief ? ' and research results' : ''})
+            </h3>
             <span className="text-blue-200/50 text-xs">
               {generatedPrompts.prompts.length} steps — {completedSteps.size} of {generatedPrompts.prompts.length} complete
             </span>
