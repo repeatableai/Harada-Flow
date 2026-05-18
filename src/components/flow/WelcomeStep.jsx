@@ -247,20 +247,20 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     setIsSubmitting(false);
   };
 
-  const handleDossierGenerated = ({ content, companyId: newCompanyId, knowledgeFileId }) => {
-    // Include dossier file ID alongside any selected org files for matrix generation
-    const allFileIds = Array.from(selectedOrgFileIds);
-    if (knowledgeFileId) allFileIds.push(knowledgeFileId);
+  const handleDossierGenerated = async ({ content, companyId: newCompanyId, knowledgeFileId }) => {
+    // Refresh the knowledge files list so the dossier appears
+    try {
+      const files = await apiClient.knowledgeFiles.getAvailableContext();
+      setOrgKnowledgeFiles(files || []);
+      // Auto-select all files including the new dossier
+      if (files && files.length > 0) {
+        setSelectedOrgFileIds(new Set(files.map(f => f.id)));
+      }
+    } catch (err) {
+      console.error('Failed to refresh knowledge files:', err);
+    }
 
-    // Update user profile
-    UserApi.updateMe({ job_title: formData.job_title }).catch(() => {});
-
-    // Proceed to matrix generation with dossier already created
-    // We need to load the company that was created inside the dialog
-    Company.list().then(companies => {
-      const created = companies.find(c => c.id === newCompanyId);
-      if (created) onCompanyCreated(created, allFileIds);
-    }).catch(() => {});
+    toast({ title: 'Dossier saved to knowledge files', description: 'You can now select it when creating a new role.', duration: 4000 });
   };
 
   const handleInputChange = (field, value) => {

@@ -553,14 +553,14 @@ export async function getAvailableContextFiles(user) {
           { departmentIds: { has: user.departmentId } },
         ],
       }] : []),
+      // User's own personal files (includes auto-generated dossiers)
+      {
+        AND: [
+          { uploaderId: user.id },
+          { scope: 'self' },
+        ],
+      },
     ],
-    // Exclude user's own personal files - those are handled separately
-    NOT: {
-      AND: [
-        { uploaderId: user.id },
-        { scope: 'self' },
-      ],
-    },
   };
 
   const files = await prisma.knowledgeFile.findMany({
