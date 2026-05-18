@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
 import FileUploadArea from "@/components/common/FileUploadArea";
+import { downloadDocx } from "@/lib/downloadDocx";
 import SessionsList from "@/components/dashboard/SessionsList";
 import SavedPromptsList from "@/components/dashboard/SavedPromptsList";
 
@@ -256,7 +257,7 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     setIsGeneratingDossier(true);
 
     try {
-      // Create a company record first if needed
+      // Create a company record first
       const newCompany = await Company.create(formData);
 
       // Fire dossier generation via SSE
@@ -273,14 +274,49 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
         }),
       });
 
+      const dossierContent = result.content || '';
+
+      // Download dossier as .docx to user's system
+      if (dossierContent) {
+        const dossierFilename = `Company-Dossier-${(formData.industry || 'Dossier').replace(/[^a-zA-Z0-9]/g, '-')}`;
+        downloadDocx(dossierContent, dossierFilename).catch(err => {
+          console.error('Failed to download dossier as docx:', err);
+        });
+      }
+
+      // Upload dossier as a knowledge file so it's included in matrix generation
+      let dossierFileId = null;
+      if (dossierContent) {
+        try {
+          const dossierFile = new File(
+            [dossierContent],
+            `Company-Dossier-${newCompany.id}.md`,
+            { type: 'text/markdown' }
+          );
+          const uploadResult = await apiClient.knowledgeFiles.upload(
+            dossierFile,
+            'self',
+            [],
+            'Auto-generated company dossier',
+          );
+          dossierFileId = uploadResult.id;
+        } catch (uploadErr) {
+          console.error('Failed to upload dossier as knowledge file:', uploadErr);
+        }
+      }
+
       setDossierGenerated(true);
-      toast({ title: 'Dossier Generated', description: 'Company dossier created. It will appear as Session 00 when you generate deliverables.', duration: 5000 });
+      toast({ title: 'Dossier Generated', description: 'Company dossier downloaded and added to your knowledge files for matrix generation.', duration: 5000 });
 
       // Also update user profile
       UserApi.updateMe({ job_title: formData.job_title }).catch(() => {});
 
-      // Proceed to matrix generation with dossier already created
-      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
+      // Include dossier file ID alongside any selected org files for matrix generation
+      const allFileIds = Array.from(selectedOrgFileIds);
+      if (dossierFileId) allFileIds.push(dossierFileId);
+
+      // Proceed to matrix generation with dossier already created and included as context
+      onCompanyCreated(newCompany, allFileIds);
     } catch (err) {
       toast({ title: 'Dossier generation failed', description: err.message || 'Please try again.', variant: 'destructive' });
     } finally {
