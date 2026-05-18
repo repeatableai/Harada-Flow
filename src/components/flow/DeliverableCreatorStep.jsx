@@ -33,6 +33,7 @@ import DeliverableSelector from "../deliverable/DeliverableSelector";
 import GeneratedPrompts from "../deliverable/GeneratedPrompts";
 import WorkingDeliverableFlow from "./WorkingDeliverableFlow";
 import ExecutiveDceFlow from "./ExecutiveDceFlow";
+import PerplexityPromptStep from "./PerplexityPromptStep";
 import RegistrySidebar from "./RegistrySidebar";
 import LoadingOverlay from "../common/LoadingOverlay";
 import SessionsList from "../dashboard/SessionsList";
@@ -124,6 +125,8 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
     setSelectedDeliverable(deliverable);
     if (mode === 'Executive') {
       setStep('executive-flow');
+    } else if (mode === 'ResearchOnly') {
+      setStep('research-only');
     } else {
       setStep('working-flow');
     }
@@ -1027,6 +1030,50 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
         />
       )}
 
+      {step === 'research-only' && selectedDeliverable && (
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div>
+            <Button variant="ghost" onClick={resetSelection} className="text-blue-300 hover:text-white mb-2 -ml-2">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Back to Matrix
+            </Button>
+            <h2 className="text-xl font-bold text-white">{selectedDeliverable.name}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs px-2 py-0.5 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-300 flex items-center gap-1">
+                <Target className="w-3 h-3" /> Research Brief Only
+              </span>
+            </div>
+          </div>
+
+          <PerplexityPromptStep
+            company={company}
+            deliverable={selectedDeliverable}
+            onGenerated={async (brief) => {
+              // Save the research brief as a standalone SavedPrompt
+              try {
+                await SavedPrompt.create(company.id, {
+                  deliverable_name: selectedDeliverable.name,
+                  deliverable_type: selectedDeliverable.type,
+                  column_name: selectedDeliverable.column || selectedDeliverable.category || null,
+                  overview: `Research Brief Only — Perplexity deep research prompt for ${selectedDeliverable.name}`,
+                  prompts: [{
+                    step: 1,
+                    title: 'Perplexity Deep Research Brief',
+                    description: 'Copy this into Perplexity deep research to gather context for this deliverable.',
+                    prompt: brief,
+                  }],
+                  is_custom: selectedDeliverable.isCustom || false,
+                  custom_input: selectedDeliverable.isCustom ? selectedDeliverable.name : null,
+                });
+                toast({ title: 'Research brief saved', description: 'You can find it in the Requests tab.', duration: 3000 });
+              } catch (err) {
+                console.error('Failed to save research brief:', err);
+              }
+            }}
+            onSkip={() => resetSelection()}
+          />
+        </div>
+      )}
+
       {step === 'executive-flow' && selectedDeliverable && (
         <ExecutiveDceFlow
           company={company}
@@ -1254,6 +1301,13 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
             >
               <Crown className="w-4 h-4" />
               Executive DCE (comprehensive)
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleModeChoice('ResearchOnly')}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white flex items-center gap-2"
+            >
+              <Target className="w-4 h-4" />
+              Research Brief Only
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

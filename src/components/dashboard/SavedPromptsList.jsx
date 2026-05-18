@@ -15,8 +15,10 @@ import {
   Briefcase,
   Inbox,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Download
 } from "lucide-react";
+import { downloadMarkdown } from '@/lib/downloadMarkdown';
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -308,18 +310,28 @@ export default function SavedPromptsList({ companyId, onPromptDeleted }) {
                                 </Badge>
                                 <span className="text-white font-medium">{prompt.title}</span>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyToClipboard(prompt.prompt, `${savedPrompt.id}-${promptIndex}`)}
-                                className="text-gray-400 hover:text-white h-7 px-2"
-                              >
-                                {copiedIndex === `${savedPrompt.id}-${promptIndex}` ? (
-                                  <CheckCircle className="w-4 h-4 text-green-400" />
-                                ) : (
-                                  <Copy className="w-4 h-4" />
-                                )}
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyToClipboard(prompt.prompt, `${savedPrompt.id}-${promptIndex}`)}
+                                  className="text-gray-400 hover:text-white h-7 px-2"
+                                >
+                                  {copiedIndex === `${savedPrompt.id}-${promptIndex}` ? (
+                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                  ) : (
+                                    <Copy className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => downloadMarkdown(prompt.prompt, prompt.title || `Step-${prompt.step}`)}
+                                  className="text-gray-400 hover:text-white h-7 px-2"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
                             <p className="text-xs text-gray-400 mb-2">{prompt.description}</p>
                             <pre className="text-xs text-gray-200 whitespace-pre-wrap font-mono bg-black/20 p-2 rounded">

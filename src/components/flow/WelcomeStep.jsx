@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Company, User as UserApi } from "@/api/entities";
 import { apiClient } from "@/api/apiClient";
-import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight, ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
+import { Sparkles, Building, User, Globe, ArrowRight, Info, FolderOpen, Plus, Bookmark, FileUp, Edit3, Loader2, FileText, ToggleLeft, ToggleRight, ShieldCheck, ShieldAlert, ShieldX, Search } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -31,6 +31,10 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [isPreFilled, setIsPreFilled] = useState(false);
   const [isExtractingRole, setIsExtractingRole] = useState(false);
+
+  // Dossier generation state
+  const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
+  const [dossierGenerated, setDossierGenerated] = useState(false);
 
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -243,6 +247,47 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     setIsSubmitting(false);
   };
 
+  const handleGenerateDossier = async () => {
+    if (!isFormValid) {
+      toast({ title: 'Fill in required fields first', description: 'Job Title, Industry, and Company Size are needed to generate a dossier.', variant: 'destructive' });
+      return;
+    }
+
+    setIsGeneratingDossier(true);
+
+    try {
+      // Create a company record first if needed
+      const newCompany = await Company.create(formData);
+
+      // Fire dossier generation via SSE
+      const result = await apiClient.requestSSE('/dossier/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          companyName: formData.industry || 'the company',
+          companyUrl: formData.company_url || null,
+          jobTitle: formData.job_title || null,
+          industry: formData.industry || null,
+          companySize: formData.company_size || null,
+          engagementFocus: formData.job_title || 'operational deliverables',
+          companyId: newCompany.id,
+        }),
+      });
+
+      setDossierGenerated(true);
+      toast({ title: 'Dossier Generated', description: 'Company dossier created. It will appear as Session 00 when you generate deliverables.', duration: 5000 });
+
+      // Also update user profile
+      UserApi.updateMe({ job_title: formData.job_title }).catch(() => {});
+
+      // Proceed to matrix generation with dossier already created
+      onCompanyCreated(newCompany, Array.from(selectedOrgFileIds));
+    } catch (err) {
+      toast({ title: 'Dossier generation failed', description: err.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsGeneratingDossier(false);
+    }
+  };
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -347,13 +392,29 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
       >
         <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
           <CardHeader className="pb-4">
-            <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
-              <Building className="w-6 h-6 text-blue-400" />
-              Tell us about your role
-            </CardTitle>
-            <p className="text-blue-200">
-              We'll use this information to create personalized matrices for your specific position and industry.
-            </p>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                  <Building className="w-6 h-6 text-blue-400" />
+                  Tell us about your role
+                </CardTitle>
+                <p className="text-blue-200 mt-1">
+                  We'll use this information to create personalized matrices for your specific position and industry.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={handleGenerateDossier}
+                disabled={!isFormValid || isGeneratingDossier || isSubmitting}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs px-3 py-2 flex-shrink-0"
+              >
+                {isGeneratingDossier ? (
+                  <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Generating...</>
+                ) : (
+                  <><Search className="w-3 h-3 mr-1" /> Generate Dossier</>
+                )}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Inline Mode Toggle */}
