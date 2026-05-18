@@ -1071,26 +1071,6 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
               </Select>
             </div>
 
-            {/* Generate Dossier */}
-            <Button
-              variant="ghost"
-              onClick={() => setShowDossierGeneratorDialog(true)}
-              className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs px-3 py-1 h-auto"
-            >
-              <Search className="w-3 h-3 mr-1" />
-              Generate Dossier
-            </Button>
-
-            {/* Close Session */}
-            <Button
-              variant="ghost"
-              onClick={handleCloseSession}
-              disabled={isClosingSession}
-              className="bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-500/20 text-xs px-3 py-1 h-auto"
-            >
-              {isClosingSession ? <Zap className="w-3 h-3 animate-spin mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
-              Close Session
-            </Button>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
             <Target className="inline-block w-8 h-8 mr-3 text-blue-400" />
