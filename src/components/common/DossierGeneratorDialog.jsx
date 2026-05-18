@@ -223,7 +223,7 @@ export default function DossierGeneratorDialog({ open, onOpenChange, companyId, 
         </div>
 
         <AlertDialogFooter className="gap-2">
-          <AlertDialogCancel className="text-white border-white/20" disabled={isGenerating}>
+          <AlertDialogCancel className="text-white border-white/20 bg-white/10 hover:bg-white/20" disabled={isGenerating}>
             Cancel
           </AlertDialogCancel>
           <Button

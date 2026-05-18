@@ -1321,12 +1321,19 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
               <Crown className="w-4 h-4" />
               Executive DCE (comprehensive)
             </AlertDialogAction>
+
+            <div className="flex items-center gap-3 pt-2 pb-1">
+              <div className="flex-1 border-t border-white/10"></div>
+              <span className="text-xs text-blue-200/50">Research Only</span>
+              <div className="flex-1 border-t border-white/10"></div>
+            </div>
+
             <AlertDialogAction
               onClick={() => handleModeChoice('ResearchOnly')}
               className="bg-cyan-600 hover:bg-cyan-700 text-white flex items-center justify-center gap-2 w-full"
             >
-              <Target className="w-4 h-4" />
-              Research Brief Only
+              <Search className="w-4 h-4" />
+              Generate Perplexity Prompt
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
