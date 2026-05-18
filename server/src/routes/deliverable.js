@@ -2,7 +2,6 @@
  * Deliverable Generation Routes
  *
  * POST /api/deliverable/working          — Working mode: generate 3-7 chunks
- * POST /api/deliverable/working/complete — Working mode: handle completion (ACD/Registry)
  * POST /api/deliverable/executive        — Executive mode: pre-check + block cards
  */
 
@@ -15,13 +14,10 @@ import { authenticate } from '../middleware/auth.js';
 import prisma from '../db.js';
 import config from '../config.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { dispatchWebhookEvent } from '../services/webhook.service.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// For internal ACD auto-fire calls
-const INTERNAL_BASE = `http://localhost:${config.port || 3001}`;
 
 const router = Router();
 router.use(authenticate);
@@ -53,8 +49,7 @@ Each chunk must:
 - Include a chunk header: "### Chunk [N] of [TOTAL] — [purpose]"
 - Stand alone (no reference to chunks not yet run)
 - Request specific missing context if needed, OR offer to generate synthetic data
-  for that specific input (label [SYN] in output), OR embed an MCQ if a structural
-  choice is required
+  for that specific input (label [SYN] in output)
 - Preserve Magic Wand vision, 5-Expert Panel review, and Brutal Pre-Mortem where
   relevant to the chunk's scope
 - Target: 10 minutes total human time across all chunks for a deliverable that
@@ -63,11 +58,7 @@ Each chunk must:
 The FINAL chunk must:
 - Produce the deployment-ready artifact (file output)
 - Include a self-grading QA rubric: "Magic wand vision present? Pre-mortem present?
-  5-expert panel present? Deployment-ready (not outline)?"
-- Close with an ACD/Registry user-elect prompt:
-  "This deliverable is complete. Would you like to: (A) Generate companion ACD,
-  (B) Log to artifact registry, (C) Both, (D) Skip?"
-- Emit the machine-readable marker "[SEQUENCE_COMPLETE]" on the last line`;
+  5-expert panel present? Deployment-ready (not outline)?"`;
 
 /**
  * POST /api/deliverable/working
@@ -152,16 +143,11 @@ Generate the dynamic chunk sequence now.`;
       const end = i < dedupedMatches.length - 1 ? dedupedMatches[i + 1].index : fullText.length;
       const content = fullText.substring(start, end).trim();
 
-      // Check for MCQ patterns
-      const containsMcq = /\b[A-G]\)\s|options?\s*(?:labeled|are)\s|choose\s+(?:one|from)/i.test(content);
-
       chunks.push({
         number: dedupedMatches[i].number,
         total: dedupedMatches[i].total || totalChunkCount,
         purpose: dedupedMatches[i].purpose,
         content,
-        containsMcq,
-        isSequenceComplete: content.includes('[SEQUENCE_COMPLETE]'),
       });
     }
 
@@ -172,8 +158,6 @@ Generate the dynamic chunk sequence now.`;
         total: 1,
         purpose: 'Complete Deliverable',
         content: fullText,
-        containsMcq: false,
-        isSequenceComplete: fullText.includes('[SEQUENCE_COMPLETE]'),
       });
     }
 
@@ -183,69 +167,6 @@ Generate the dynamic chunk sequence now.`;
       deliverableName,
       companyId,
     });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * POST /api/deliverable/working/complete
- * Handle completion of a Working deliverable (ACD/Registry choices)
- */
-router.post('/working/complete', async (req, res, next) => {
-  try {
-    const { companyId, deliverableName, acdRegistryChoice } = req.body;
-
-    if (!companyId || !deliverableName || !acdRegistryChoice) {
-      throw new AppError('companyId, deliverableName, and acdRegistryChoice are required', 400);
-    }
-
-    const results = { acd: null, registry: null };
-
-    // Choice B (Registry only) or C (Both) — actually write to artifact_registry
-    if (['B', 'C'].includes(acdRegistryChoice)) {
-      const existingCount = await prisma.artifactRegistry.count({ where: { companyId } });
-      await prisma.artifactRegistry.create({
-        data: {
-          companyId,
-          artifactNumber: existingCount + 1,
-          name: deliverableName,
-          type: 'MD',
-          mode: 'Working',
-          acdStatus: ['A', 'C'].includes(acdRegistryChoice) ? 'Required' : 'N/A',
-          sessionNumber: 1,
-          status: 'Generated',
-        },
-      });
-      results.registry = 'written';
-    }
-
-    // Choice A (ACD only) or C (Both) — fire ACD generation
-    if (['A', 'C'].includes(acdRegistryChoice)) {
-      // Fire ACD asynchronously — don't block the response
-      fetch(`${INTERNAL_BASE}/api/acd/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization },
-        body: JSON.stringify({ companyId, artifactName: deliverableName, artifactType: 'MD' }),
-      }).catch(err => console.error('ACD auto-fire failed:', err.message));
-      results.acd = 'fired';
-    }
-
-    // Choice D — skip
-    if (acdRegistryChoice === 'D') {
-      results.acd = 'skipped';
-      results.registry = 'skipped';
-    }
-
-    // Fire outbound webhook event
-    dispatchWebhookEvent('artifact.created', {
-      companyId,
-      deliverableName,
-      acdRegistryChoice,
-      results,
-    }, req.user.id);
-
-    res.json({ success: true, choice: acdRegistryChoice, results });
   } catch (error) {
     next(error);
   }
@@ -306,58 +227,6 @@ router.post('/executive', async (req, res, next) => {
       deliverableName,
       companyId,
     });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ── Registry Read ─────────────────────────────────────────
-
-/**
- * GET /api/deliverable/registry?companyId=xxx
- * Fetch artifact registry entries for an engagement
- */
-router.get('/registry', async (req, res, next) => {
-  try {
-    const { companyId } = req.query;
-    if (!companyId) {
-      throw new AppError('companyId is required', 400);
-    }
-
-    const entries = await prisma.artifactRegistry.findMany({
-      where: { companyId },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    res.json({ data: entries });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/deliverable/registry/:id/acd
- * Download ACD content for a registry entry
- */
-router.get('/registry/:id/acd', async (req, res, next) => {
-  try {
-    const entry = await prisma.artifactRegistry.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!entry) {
-      throw new AppError('Registry entry not found', 404);
-    }
-
-    if (!entry.acdContent) {
-      throw new AppError('No ACD content available for this entry', 404);
-    }
-
-    // Return as downloadable HTML file
-    const filename = `${entry.name.replace(/[^a-zA-Z0-9]/g, '_')}_ACD.html`;
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(entry.acdContent);
   } catch (error) {
     next(error);
   }

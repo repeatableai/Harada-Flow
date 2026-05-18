@@ -17,7 +17,6 @@ import activityRoutes from '../server/src/routes/activity.js';
 import cuiScanRoutes from '../server/src/routes/cuiScan.js';
 import dossierRoutes from '../server/src/routes/dossier.js';
 import deliverableRoutes from '../server/src/routes/deliverable.js';
-import acdRoutes from '../server/src/routes/acd.js';
 import sessionCloseRoutes from '../server/src/routes/sessionClose.js';
 import seedRoutes from '../server/src/routes/seed.js';
 
@@ -41,7 +40,6 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/cui-scan', cuiScanRoutes);
 app.use('/api/dossier', dossierRoutes);
 app.use('/api/deliverable', deliverableRoutes);
-app.use('/api/acd', acdRoutes);
 app.use('/api/session', sessionCloseRoutes);
 app.use('/api/seed', seedRoutes);
 app.use(errorHandler);

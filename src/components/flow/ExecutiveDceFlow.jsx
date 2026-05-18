@@ -13,7 +13,6 @@ import { InvokeLLM } from '@/api/integrations';
 import { SavedPrompt } from '@/api/entities';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { apiClient } from '@/api/apiClient';
 import { useToast } from '@/components/ui/use-toast';
 import LoadingOverlay from '../common/LoadingOverlay';
@@ -49,8 +48,6 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
   const [perplexityBrief, setPerplexityBrief] = useState(null);
   const [perplexityCompleted, setPerplexityCompleted] = useState(false);
 
-  // Prompt completion tracking (checkboxes)
-  const [completedSteps, setCompletedSteps] = useState(new Set());
   const [copiedSteps, setCopiedSteps] = useState(new Set());
 
   const [error, setError] = useState('');
@@ -183,23 +180,9 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
         console.error('ExecutiveDceFlow: failed to save prompts:', saveErr);
       }
 
-      // Auto-fire ACD + Registry (Executive mode — no user choice)
-      try {
-        await apiClient.request('/deliverable/working/complete', {
-          method: 'POST',
-          body: JSON.stringify({
-            companyId: company.id,
-            deliverableName: deliverable.name,
-            acdRegistryChoice: 'C', // Both — auto-fire in Executive mode
-          }),
-        });
-      } catch {
-        // Non-critical
-      }
-
       toast({
         title: "Prompts generated",
-        description: "8 DCE prompts created. ACD and Registry auto-logged.",
+        description: "8 DCE prompts created.",
         duration: 4000,
       });
     } catch (err) {
@@ -258,17 +241,6 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
     }
   };
 
-  const toggleStepComplete = (step) => {
-    setCompletedSteps(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(step)) {
-        newSet.delete(step);
-      } else {
-        newSet.add(step);
-      }
-      return newSet;
-    });
-  };
 
   // ── Render ───────────────────────────────────────────────
 
@@ -469,7 +441,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
           <div>
             <h3 className="text-white font-semibold text-sm">Step 3 — Your DCE Prompts (paste these after the governance blocks{perplexityBrief ? ' and research results' : ''})</h3>
             <span className="text-blue-200/50 text-xs">
-              {generatedPrompts.prompts.length} steps — {completedSteps.size} of {generatedPrompts.prompts.length} complete
+              {generatedPrompts.prompts.length} steps
             </span>
           </div>
 
@@ -484,11 +456,7 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
           {generatedPrompts.prompts.map((prompt) => (
             <Card
               key={prompt.step}
-              className={`border transition-all ${
-                completedSteps.has(prompt.step)
-                  ? 'bg-green-500/5 border-green-500/30'
-                  : 'bg-white/5 border-white/10'
-              }`}
+              className="border bg-white/5 border-white/10"
             >
               <CardContent className="p-4 space-y-3">
                 {/* Header */}
@@ -522,18 +490,6 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
                 <pre className="text-xs text-blue-200/70 bg-black/30 p-3 rounded overflow-x-auto overflow-y-auto whitespace-pre-wrap font-mono">
                   {prompt.prompt}
                 </pre>
-
-                {/* Complete checkbox */}
-                <div className="flex items-center gap-2 pt-1">
-                  <Checkbox
-                    id={`step-${prompt.step}`}
-                    checked={completedSteps.has(prompt.step)}
-                    onCheckedChange={() => toggleStepComplete(prompt.step)}
-                  />
-                  <label htmlFor={`step-${prompt.step}`} className="text-sm text-blue-200/70 cursor-pointer">
-                    I've run this step
-                  </label>
-                </div>
               </CardContent>
             </Card>
           ))}
@@ -548,7 +504,6 @@ CRITICAL: Each prompt must be 800-2000+ words of detailed instruction.`;
               <div className="space-y-1 text-blue-200/70 text-xs">
                 <p>• Copy each request in sequential order and paste them into the LLM of your choice.</p>
                 <p>• Use the output from each step to inform the next.</p>
-                <p>• Check off each step as you complete it.</p>
               </div>
             </CardContent>
           </Card>

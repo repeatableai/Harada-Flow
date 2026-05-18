@@ -35,7 +35,6 @@ import WorkingDeliverableFlow from "./WorkingDeliverableFlow";
 import ExecutiveDceFlow from "./ExecutiveDceFlow";
 import PerplexityPromptStep from "./PerplexityPromptStep";
 import DossierGeneratorDialog from "../common/DossierGeneratorDialog";
-import RegistrySidebar from "./RegistrySidebar";
 import LoadingOverlay from "../common/LoadingOverlay";
 import SessionsList from "../dashboard/SessionsList";
 import SavedPromptsList from "../dashboard/SavedPromptsList";
@@ -306,31 +305,13 @@ Immediately after the magic wand answer, conduct a pre-mortem: analyze every pro
 RULE 3 — EXPERT PANEL OF 5
 Convene a panel of 5 world-renowned knowledge domain experts (named, with specific credentials and institutional affiliations) to oversee and debate best strategy, framework, SOP, and workflow for extreme excellence and comprehensiveness in the deliverable. Experts must have distinct perspectives and must include disagreements with each other. The panel is not decorative — their specific recommendations must be integrated into the deliverable.
 
-RULE 4 — SINGLE-QUESTION MCQ PROTOCOL
-Never ask multiple questions. Present ONE clear multiple-choice question at the end of each response. Minimum options A through G. Every MCQ MUST include these three options among the choices:
-  - "Best Practices" — apply industry-standard best practices and proceed
-  - "Synthetic Data" — create realistic synthetic data representative of the deliverable's domain and proceed
-  - "All of the Above" — apply all options (weighted by relevance and feasibility)
-Each option must carry a Complexity Signal:
-  🟢 Single artifact — fits in current session
-  🟡 Multiple artifacts — may require parallel sessions
-  🔴 Architectural change — creates version fork, requires explicit decision
-
-RULE 5 — FORK DETECTION PROTOCOL
-After the user answers any MCQ, BEFORE producing any output, perform a Fork Analysis:
-  1. Classify the answer: Does it expand the current artifact (Scope Expansion)? Create parallel artifacts (Parallel Asset)? Restructure what exists (Architectural Rebuild)? Require something that doesn't exist yet (Prerequisite Dependency)?
-  2. Present a plain-language summary (2-3 sentences) of what the answer triggers — how many artifacts, what changes, what the implications are.
-  3. Offer the user explicit execution options: (A) Execute everything now, (B) Execute one item and queue the rest, (C) Produce handoff docs for all items, (D) Clarify scope before proceeding.
-  4. Only after the user confirms the execution path does the AI produce output.
-This protocol fires between every MCQ answer and every execution, without exception. A non-expert user must be able to read the fork analysis in 60 seconds and make a decision.
-
-RULE 6 — CONTEXT WINDOW MANAGEMENT & HANDOFF PROTOCOL
+RULE 4 — CONTEXT WINDOW MANAGEMENT & HANDOFF PROTOCOL
 After every response, estimate the current context window consumption as a percentage. Apply these thresholds:
   - At ~50%: Begin including a brief status line at the end of each response: "⚡ Context: ~X% used | ~Y% remaining"
   - At ~75%: Add a warning: "⚠️ CONTEXT WARNING: Approaching session limits. Consider completing current step and generating a handoff document."
   - At ~80-85%: STOP producing deliverable content. Instead, generate a COMPLETE HANDOFF DOCUMENT that contains:
     (a) Full current state of the deliverable (what has been built so far)
-    (b) Every MCQ answer the user has given and what was executed for each
+    (b) Every decision the user has made and what was executed for each
     (c) Every artifact produced with titles and descriptions
     (d) Remaining DCE steps not yet completed
     (e) All context, data, specifications, and preferences from the session
@@ -338,20 +319,18 @@ After every response, estimate the current context window consumption as a perce
   The handoff document must be self-contained. A new AI session receiving only the handoff document must be able to continue the work without any other input.
   NEVER wait for automatic compacting. Generate the handoff PROACTIVELY at 80%.
 
-RULE 7 — COMPLETION-FIRST
+RULE 5 — COMPLETION-FIRST
 Always produce a COMPLETE draft — never outlines, never bullet-point summaries, never placeholder sections. Every artifact must be deployment-ready content that can be refined with real data, not started from scratch. If the deliverable is a report, produce the full report. If it's a training curriculum, produce the full curriculum with all modules, content, and assessments. The user should never see "TODO" or "insert here" or "expand this section."
 
-RULE 8 — OUTPUT FORMAT
+RULE 6 — OUTPUT FORMAT
 Every response must include these clearly labeled blocks:
   [ARTIFACT] — The actual deliverable content, complete and formatted
   [TIME_STUDY] — Estimated time saved vs. manual creation (baseline hours, AI-assisted hours, percentage reduction, dollar value at industry-standard rates)
-  [QUESTION] — Single MCQ following Rule 4 protocol
-The answer to the MCQ executes as a standalone action. The NEXT DCE step begins in the FOLLOWING exchange — never in the same response as the MCQ answer execution.
 
-RULE 9 — WEBSITE CONTEXT SAFETY
+RULE 7 — WEBSITE CONTEXT SAFETY
 If a company URL is provided, reference publicly available information but never assume facts not explicitly stated. Label any data inferred from web context as such. Do not fabricate company-specific statistics, org charts, or operational details.
 
-RULE 10 — FORMATTING STANDARDS
+RULE 8 — FORMATTING STANDARDS
 Font: Inter only (Google Fonts). Never serif. One accent font variant permitted for hero numerics at 28px or larger.
 HTML artifacts: mandatory light/dark theme toggle, top-right position, default dark, WCAG AA contrast compliance.
 All frameworks applied without being asked: Conversion Equation, Pre-mortem, Expert Panel, Swim Lane ROI, 80/20, Theory of Constraints, Kaizen.
@@ -366,7 +345,7 @@ PROMPT 1: Context Distillation + Specification + Initial Time Study
 - Create a detailed specification for the deliverable including scope, success criteria, sections, and acceptance standards
 - Establish baseline time study: how long would this take to create manually?
 - Pre-mortem: what could go wrong with this scope definition?
-- Question (MCQ per Rule 4): Confirm spec accuracy, adjust focus area, or expand/narrow scope
+- Confirm spec accuracy, adjust focus area, or expand/narrow scope
 - IMPORTANT: This prompt must establish all context that subsequent prompts will reference. Be comprehensive.
 
 PROMPT 2: Generate Version 1 — Complete First Draft
@@ -528,33 +507,6 @@ VISUAL POLISH: Moderate drop shadows on text blocks. Subtle animations on transi
 
 SYNTHETIC DATA: All synthetic/placeholder data labeled with [SYN] markers. Yellow cells in spreadsheets. Inline badges in HTML.
 
-MCQ PROTOCOL:
-
-Present clarifying questions as plain conversational text. No formatted MCQ boxes.
-Options labeled A through G:
-- A-D: Specific strategic choices
-- E: Best Practices (industry standard approach)
-- F: Generate Synthetic Data (where applicable)
-- G: All of the Above
-
-STANDING ORDER: If the user selects no option, default to G (All of the Above).
-
-MCQ TYPES:
-- STRUCTURAL: Changes architecture → separate exchange required
-- ADDITIVE: Adds module/section → separate exchange required
-- STYLISTIC: Presentation only → folds into next step
-
-Each MCQ states: Type | Output type | Complexity (Simple/Medium/Complex)
-
-EXECUTION SEQUENCE:
-1. Generate MCQ at end of DCE step output
-2. User answers
-3. Execute answer as COMPLETE standalone output
-4. Confirm: "Ready to proceed to DCE Step [N]?"
-5. User confirms → begin next step
-
-NEVER present a new MCQ and begin building its output in the same response.
-
 FRAMEWORK REQUIREMENTS FOR EVERY MAJOR DELIVERABLE:
 
 1. MAGIC WAND VISION: Open with "If you had a magic wand..." — fully realized, bold, no hedging. Aspirational anchor. Suspend laws of physics if needed.
@@ -566,35 +518,12 @@ FRAMEWORK REQUIREMENTS FOR EVERY MAJOR DELIVERABLE:
 4. ADDITIONAL FRAMEWORKS (apply when relevant):
    - 5 Whys (root cause)
    - Theory of Constraints (binding constraint)
-   - Fractal 80/20 (20% driving 80% impact) — surface in MCQ options when discovered
+   - Fractal 80/20 (20% driving 80% impact)
    - Kaizen (continuous improvement)
    - What/If Matrix (scenario analysis)
    - Reverse Moonshot (work backward from extreme outcome)
 
-These frameworks ENRICH deliverables. They do NOT replace structured outputs, lengthen at expense of completeness, or override MCQ sequencing.
-
-ARTIFACT COMPANION DOCUMENT (ACD) REQUIREMENT:
-
-After generating ANY non-HTML artifact (.xlsx, .docx, .pdf, .md), IMMEDIATELY generate a companion ACD as an HTML document — UNLESS the engagement is in Working Deliverable mode, in which case the final chunk asks the user whether to generate ACD.
-
-ACD STRUCTURE (7 mandatory sections):
-1. What This Is — 30-second orientation
-2. Strategic Value — why it exists
-3. How — operational manual
-4. Design Decisions — expert panel highlights
-5. Known Risks & Failure Modes — pre-mortem digest
-6. Expected Results — 30/90/180/365-day milestones
-7. System Connections — dependencies and data flows
-
-ACD follows all design rules (Inter font, dark mode toggle, WCAG AA, standard footer).
-ACD filename: [ClientCode]_[ArtifactName]_ACD_v[N].[Minor]_[YYYY-MM].html
-ACD version matches artifact version.
-
-EXCEPTIONS:
-- HTML artifacts with embedded strategic context tabs (pre-mortem, expert panel, usage guide) are self-documenting — no ACD needed.
-- HTML artifacts WITHOUT strategic context tabs get abbreviated ACD (Sections 1, 2, 6, 7).
-- Trivially simple artifacts (1-page checklist, single-tab CSV) get abbreviated ACD (Sections 1, 3, 7).
-- User can say "skip ACD" or "defer ACD to next session."
+These frameworks ENRICH deliverables. They do NOT replace structured outputs or lengthen at expense of completeness.
 
 CONTEXT WINDOW MANAGEMENT:
 
@@ -609,7 +538,7 @@ ACCELERATORS (reduce trigger to 70%):
 - 3+ HTML artifacts >40KB
 - User pasted raw data >500 words
 - 6+ DCE steps completed
-- "All of the above" MCQ answer given
+- Complex multi-step deliverables
 
 HANDOFF DOCUMENT must include: engagement overview, full client context, standing preferences, all active data (actual numbers), current state, next steps, collateral register, pending actions, nuance register, open questions.
 
@@ -1241,10 +1170,6 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           </TabsContent>
         </Tabs>
 
-        {/* Registry Sidebar */}
-        <div className="mt-8">
-          <RegistrySidebar companyId={company?.id} />
-        </div>
       </div>
 
       {/* Dossier Pre-Check Modal */}
