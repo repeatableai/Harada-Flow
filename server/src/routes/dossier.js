@@ -14,6 +14,7 @@ import { authenticate } from '../middleware/auth.js';
 import prisma from '../db.js';
 import config from '../config.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { dispatchWebhookEvent } from '../services/webhook.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -162,6 +163,13 @@ router.post('/generate', async (req, res) => {
         dossierContent,
       },
     });
+
+    // Fire outbound webhook event
+    dispatchWebhookEvent('dossier.generated', {
+      companyId,
+      filename: dossierFilename,
+      contentLength: dossierContent.length,
+    }, req.user.id);
 
     // Send the final result
     res.write(`event: complete\ndata: ${JSON.stringify({

@@ -38,6 +38,7 @@ import deliverableRoutes from './routes/deliverable.js';
 import acdRoutes from './routes/acd.js';
 import sessionCloseRoutes from './routes/sessionClose.js';
 import seedRoutes from './routes/seed.js';
+import webhookRoutes from './routes/webhooks.js';
 
 const app = express();
 
@@ -114,6 +115,9 @@ app.use('/api/session', sessionCloseRoutes);
 
 // Seed routes (for initial data population)
 app.use('/api/seed', seedRoutes);
+
+// Webhook routes (management + inbound)
+app.use('/api/webhooks', webhookRoutes);
 
 // Error handler
 app.use(errorHandler);

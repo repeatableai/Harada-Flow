@@ -10,6 +10,7 @@ import { authenticate } from '../middleware/auth.js';
 import prisma from '../db.js';
 import config from '../config.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { dispatchWebhookEvent } from '../services/webhook.service.js';
 
 const router = Router();
 router.use(authenticate);
@@ -71,6 +72,12 @@ router.post('/close', async (req, res, next) => {
         outputMarkdown,
       },
     });
+
+    // Fire outbound webhook event
+    dispatchWebhookEvent('session.closed', {
+      companyId,
+      sessionNumber,
+    }, req.user.id);
 
     res.json({
       success: true,

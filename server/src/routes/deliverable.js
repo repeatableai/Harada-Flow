@@ -15,6 +15,7 @@ import { authenticate } from '../middleware/auth.js';
 import prisma from '../db.js';
 import config from '../config.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { dispatchWebhookEvent } from '../services/webhook.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -235,6 +236,14 @@ router.post('/working/complete', async (req, res, next) => {
       results.acd = 'skipped';
       results.registry = 'skipped';
     }
+
+    // Fire outbound webhook event
+    dispatchWebhookEvent('artifact.created', {
+      companyId,
+      deliverableName,
+      acdRegistryChoice,
+      results,
+    }, req.user.id);
 
     res.json({ success: true, choice: acdRegistryChoice, results });
   } catch (error) {

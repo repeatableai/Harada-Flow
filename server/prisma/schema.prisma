@@ -48,6 +48,7 @@ model User {
   knowledgeFiles       KnowledgeFile[]
   passwordResetTokens  PasswordResetToken[]
   cuiScanLogs          CuiScanLog[]
+  webhookEndpoints     WebhookEndpoint[]
 
   @@index([email])
   @@index([role])
@@ -199,7 +200,8 @@ model Organization {
   users          User[]
   companies      Company[]
   knowledgeFiles KnowledgeFile[]
-  cuiScanLogs    CuiScanLog[]
+  cuiScanLogs        CuiScanLog[]
+  webhookEndpoints   WebhookEndpoint[]
 
   @@index([slug])
   @@map("organizations")
@@ -369,4 +371,49 @@ model SessionCloseRecord {
 
   @@index([companyId])
   @@map("session_close_records")
+}
+
+model WebhookEndpoint {
+  id              String    @id @default(uuid())
+  name            String
+  url             String    @default("")
+  direction       String    // 'inbound' | 'outbound'
+  events          String[]
+  apiKey          String    @unique @map("api_key")
+  isActive        Boolean   @default(true) @map("is_active")
+
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId  String?   @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  logs            WebhookLog[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([apiKey])
+  @@index([direction])
+  @@index([isActive])
+  @@map("webhook_endpoints")
+}
+
+model WebhookLog {
+  id              String    @id @default(uuid())
+  endpointId      String    @map("endpoint_id")
+  endpoint        WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event           String
+  direction       String    // 'inbound' | 'outbound'
+  payload         Json
+  statusCode      Int?      @map("status_code")
+  response        String?   @db.Text
+  success         Boolean
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([endpointId])
+  @@index([event])
+  @@index([createdAt(sort: Desc)])
+  @@map("webhook_logs")
 }

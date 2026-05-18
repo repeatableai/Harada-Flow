@@ -1,5 +1,6 @@
 import prisma from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { dispatchWebhookEvent } from './webhook.service.js';
 
 export async function listByUser(userId) {
   // Get all prompts for all companies owned by the user
@@ -90,6 +91,9 @@ export async function create(userId, companyId, data) {
       },
     },
   });
+
+  // Fire outbound webhook event
+  dispatchWebhookEvent('prompt.saved', formatPromptResponse(prompt), userId, company.organizationId);
 
   return formatPromptResponse(prompt);
 }
