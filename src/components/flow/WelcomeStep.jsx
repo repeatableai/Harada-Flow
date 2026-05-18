@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/components/ui/use-toast";
 import FileUploadArea from "@/components/common/FileUploadArea";
-import { downloadDocx } from "@/lib/downloadDocx";
+import DossierGeneratorDialog from "@/components/common/DossierGeneratorDialog";
 import SessionsList from "@/components/dashboard/SessionsList";
 import SavedPromptsList from "@/components/dashboard/SavedPromptsList";
 
@@ -33,9 +33,8 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
   const [isPreFilled, setIsPreFilled] = useState(false);
   const [isExtractingRole, setIsExtractingRole] = useState(false);
 
-  // Dossier generation state
-  const [isGeneratingDossier, setIsGeneratingDossier] = useState(false);
-  const [dossierGenerated, setDossierGenerated] = useState(false);
+  // Dossier dialog state
+  const [showDossierDialog, setShowDossierDialog] = useState(false);
 
   // File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -248,80 +247,20 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
     setIsSubmitting(false);
   };
 
-  const handleGenerateDossier = async () => {
-    if (!isFormValid) {
-      toast({ title: 'Fill in required fields first', description: 'Job Title, Industry, and Company Size are needed to generate a dossier.', variant: 'destructive' });
-      return;
-    }
+  const handleDossierGenerated = ({ content, companyId: newCompanyId, knowledgeFileId }) => {
+    // Include dossier file ID alongside any selected org files for matrix generation
+    const allFileIds = Array.from(selectedOrgFileIds);
+    if (knowledgeFileId) allFileIds.push(knowledgeFileId);
 
-    setIsGeneratingDossier(true);
+    // Update user profile
+    UserApi.updateMe({ job_title: formData.job_title }).catch(() => {});
 
-    try {
-      // Create a company record first
-      const newCompany = await Company.create(formData);
-
-      // Fire dossier generation via SSE
-      const result = await apiClient.requestSSE('/dossier/generate', {
-        method: 'POST',
-        body: JSON.stringify({
-          companyName: formData.industry || 'the company',
-          companyUrl: formData.company_url || null,
-          jobTitle: formData.job_title || null,
-          industry: formData.industry || null,
-          companySize: formData.company_size || null,
-          engagementFocus: formData.job_title || 'operational deliverables',
-          companyId: newCompany.id,
-        }),
-      });
-
-      const dossierContent = result.content || '';
-
-      // Download dossier as .docx to user's system
-      if (dossierContent) {
-        const dossierFilename = `Company-Dossier-${(formData.industry || 'Dossier').replace(/[^a-zA-Z0-9]/g, '-')}`;
-        downloadDocx(dossierContent, dossierFilename).catch(err => {
-          console.error('Failed to download dossier as docx:', err);
-        });
-      }
-
-      // Upload dossier as a knowledge file so it's included in matrix generation
-      let dossierFileId = null;
-      if (dossierContent) {
-        try {
-          const dossierFile = new File(
-            [dossierContent],
-            `Company-Dossier-${newCompany.id}.md`,
-            { type: 'text/markdown' }
-          );
-          const uploadResult = await apiClient.knowledgeFiles.upload(
-            dossierFile,
-            'self',
-            [],
-            'Auto-generated company dossier',
-          );
-          dossierFileId = uploadResult.id;
-        } catch (uploadErr) {
-          console.error('Failed to upload dossier as knowledge file:', uploadErr);
-        }
-      }
-
-      setDossierGenerated(true);
-      toast({ title: 'Dossier Generated', description: 'Company dossier downloaded and added to your knowledge files for matrix generation.', duration: 5000 });
-
-      // Also update user profile
-      UserApi.updateMe({ job_title: formData.job_title }).catch(() => {});
-
-      // Include dossier file ID alongside any selected org files for matrix generation
-      const allFileIds = Array.from(selectedOrgFileIds);
-      if (dossierFileId) allFileIds.push(dossierFileId);
-
-      // Proceed to matrix generation with dossier already created and included as context
-      onCompanyCreated(newCompany, allFileIds);
-    } catch (err) {
-      toast({ title: 'Dossier generation failed', description: err.message || 'Please try again.', variant: 'destructive' });
-    } finally {
-      setIsGeneratingDossier(false);
-    }
+    // Proceed to matrix generation with dossier already created
+    // We need to load the company that was created inside the dialog
+    Company.list().then(companies => {
+      const created = companies.find(c => c.id === newCompanyId);
+      if (created) onCompanyCreated(created, allFileIds);
+    }).catch(() => {});
   };
 
   const handleInputChange = (field, value) => {
@@ -440,15 +379,10 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
               </div>
               <Button
                 type="button"
-                onClick={handleGenerateDossier}
-                disabled={!isFormValid || isGeneratingDossier || isSubmitting}
+                onClick={() => setShowDossierDialog(true)}
                 className="bg-cyan-600 hover:bg-cyan-700 text-white text-xs px-3 py-2 flex-shrink-0"
               >
-                {isGeneratingDossier ? (
-                  <><Loader2 className="w-3 h-3 animate-spin mr-1" /> Generating...</>
-                ) : (
-                  <><Search className="w-3 h-3 mr-1" /> Generate Dossier</>
-                )}
+                <Search className="w-3 h-3 mr-1" /> Generate Dossier
               </Button>
             </div>
           </CardHeader>
@@ -790,6 +724,12 @@ export default function WelcomeStep({ onCompanyCreated, onLoadSession, onDeleteS
           </TabsContent>
         </Tabs>
       </div>
+
+      <DossierGeneratorDialog
+        open={showDossierDialog}
+        onOpenChange={setShowDossierDialog}
+        onDossierGenerated={handleDossierGenerated}
+      />
     </div>
   );
 }

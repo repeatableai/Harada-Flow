@@ -23,7 +23,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus, AlertTriangle, Crown, Zap, ChevronUp, XCircle } from "lucide-react";
+import { Target, ArrowLeft, Sparkles, FileText, FolderOpen, Bookmark, Plus, AlertTriangle, Crown, Zap, ChevronUp, XCircle, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -34,6 +34,7 @@ import GeneratedPrompts from "../deliverable/GeneratedPrompts";
 import WorkingDeliverableFlow from "./WorkingDeliverableFlow";
 import ExecutiveDceFlow from "./ExecutiveDceFlow";
 import PerplexityPromptStep from "./PerplexityPromptStep";
+import DossierGeneratorDialog from "../common/DossierGeneratorDialog";
 import RegistrySidebar from "./RegistrySidebar";
 import LoadingOverlay from "../common/LoadingOverlay";
 import SessionsList from "../dashboard/SessionsList";
@@ -71,6 +72,9 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
 
   // Session close state
   const [isClosingSession, setIsClosingSession] = useState(false);
+
+  // Dossier generator dialog state
+  const [showDossierGeneratorDialog, setShowDossierGeneratorDialog] = useState(false);
 
   // Get resolved mode for display
   const resolvedSessionMode = resolveMode({
@@ -110,7 +114,12 @@ export default function DeliverableCreatorStep({ company, onStartOver, onLoadSes
   };
 
   // Route to the correct flow — with dossier pre-check if not yet dismissed
+  // ResearchOnly mode skips the dossier check entirely
   const routeToFlow = (deliverable, mode) => {
+    if (mode === 'ResearchOnly') {
+      proceedToFlow(deliverable, mode);
+      return;
+    }
     if (!dossierDismissed) {
       // Show dossier check before proceeding
       setPendingDossierDeliverable(deliverable);
@@ -1133,6 +1142,16 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
               </Select>
             </div>
 
+            {/* Generate Dossier */}
+            <Button
+              variant="ghost"
+              onClick={() => setShowDossierGeneratorDialog(true)}
+              className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 text-xs px-3 py-1 h-auto"
+            >
+              <Search className="w-3 h-3 mr-1" />
+              Generate Dossier
+            </Button>
+
             {/* Close Session */}
             <Button
               variant="ghost"
@@ -1287,24 +1306,24 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
               Choose the generation mode for "{pendingDeliverable?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
             <AlertDialogAction
               onClick={() => handleModeChoice('Working')}
-              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 w-full"
             >
               <Zap className="w-4 h-4" />
               Working Deliverable (fast)
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleModeChoice('Executive')}
-              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center gap-2 w-full"
             >
               <Crown className="w-4 h-4" />
               Executive DCE (comprehensive)
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleModeChoice('ResearchOnly')}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white flex items-center gap-2"
+              className="bg-cyan-600 hover:bg-cyan-700 text-white flex items-center justify-center gap-2 w-full"
             >
               <Target className="w-4 h-4" />
               Research Brief Only
@@ -1312,6 +1331,15 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DossierGeneratorDialog
+        open={showDossierGeneratorDialog}
+        onOpenChange={setShowDossierGeneratorDialog}
+        companyId={company?.id}
+        onDossierGenerated={({ content }) => {
+          if (content) setGeneratedDossier(content);
+        }}
+      />
     </div>
   );
 }
