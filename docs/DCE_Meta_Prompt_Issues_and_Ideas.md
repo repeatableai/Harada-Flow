@@ -779,23 +779,83 @@ After Phase 1 + Phase 2, every issue at Rank 5 or above has at least a partial f
 
 Only Issue 2 (A19 attention) remains partially unresolved. To fully fix it, add Solution A (two-pass, A19 only in Pass 2) or simply add a one-line instruction in the prompt: "Section A19 content should only be embedded in Prompts 7 and 8."
 
-## Recommended Combination
+---
 
-For maximum quality preservation with minimum risk:
+# Issue 15: Model Generates Block A/B as Prompt Steps (Confirmed 2026-05-19)
 
-**Phase 1 (immediate, no prompt changes, 5 code changes):**
+**Discovered during first production test after Phase 1 (128K max_tokens) deployment.**
+
+## What happened
+
+The model generated 10 prompts. Steps 0-1 were Block A ("Always-On Engine Instructions") and Block B ("Deliverable Interpretation Logic") — governance documents that already exist as separate copy-paste cards in the Executive DCE flow, loaded from `src/prompts/ExecutiveDCE_Blocks/BlockA.md` and `BlockB.md`.
+
+The actual user workflow is:
+1. User pastes **Block A** (separate card) into Claude.ai session
+2. User pastes **Block B** (separate card) into Claude.ai session
+3. User pastes **Prompt 1** (from generated pack) — begins DCE deliverable creation
+4. User pastes Prompts 2-8+ sequentially
+
+The meta prompt generator should NEVER produce Block A or Block B — they're already handled by the app UI as separate cards.
+
+## What went wrong
+
+The meta prompt contains **Section A** (lines 465-547) which is governance content nearly identical to Block A. The model:
+1. Read Section A in the meta prompt
+2. Recognized it as Block A governance material
+3. Generated it as Step 0 in the prompt pack
+4. Similarly generated Block B-like content as Step 1
+5. Built the actual deliverable prompts starting at Step 3
+6. **Burned 2 slots**, pushing Attending Asset Discovery (Prompt 7) and Portfolio Hub (Prompt 8) off the end entirely
+
+## Consequences
+
+- **Prompt 7 (Attending Asset Discovery)** never generated — no ecosystem scan, no parallel production queue
+- **Prompt 8 (Portfolio Hub)** never generated — no HTML navigation dashboard
+- **Step 2 missing** — the model skipped a number in its confusion
+- The 8 substantive prompts it DID generate (Steps 3-10) were excellent quality and very comprehensive — proving the 128K fix solved the output volume problem
+
+## Root cause confirmation
+
+This is Issues 3, 14, and 2 manifesting in production:
+- **Issue 14:** Section A says "Apply these rules to EVERY output" — the model interpreted this as "output these rules as a prompt step"
+- **Issue 3:** The model couldn't distinguish Section A (meta prompt governance) from Block A (user-facing governance doc) because they contain overlapping content
+- **Issue 2:** A19 content further confused the model about what belongs in the generated prompts vs. what's meta-level instruction
+
+## The fix (refined Phase 2)
+
+**Strip Section A and A19 from the meta prompt entirely.** They don't belong there because:
+- Block A already exists as a separate copy-paste card (`ExecutiveDCE_Blocks/BlockA.md`)
+- Block B already exists as a separate copy-paste card (`ExecutiveDCE_Blocks/BlockB.md`)
+- The user pastes Block A + B BEFORE running any generated prompts
+- Section A in the meta prompt is redundant with Block A and causes the model to re-generate it
+
+Replace Section A + A19 (~2,600 words) with a short directive (~50 words):
+
+> "IMPORTANT: The user will have already pasted Block A (Always-On Engine Instructions) and Block B (Deliverable Interpretation Logic) into their Claude.ai session before running any of these prompts. Do NOT generate Block A or Block B content as prompt steps. Each generated prompt should reference Block A/B rules as already active in the session. Focus exclusively on generating the deliverable creation prompts."
+
+Additionally, explicitly protect Prompts 7 and 8:
+
+> "PROMPT 7 MUST include Attending Asset Discovery with a complete Parallel Production Queue. PROMPT 8 MUST generate a Portfolio Hub HTML dashboard. These are non-negotiable — do not replace them with additional deliverable steps."
+
+---
+
+## Recommended Combination (Updated after Phase 1 test results)
+
+**Phase 1 — COMPLETE:**
 - Solution C — raise max_tokens to 128000, check stop_reason, add validation gate
+- **Result:** Output volume problem solved. All prompts are comprehensive. But structural confusion remains.
+
+**Phase 2 (next — prompt restructure):**
+- Solution B refined — strip Section A + A19, add Block A/B awareness directive, protect Prompts 7-8
+- Also add explicit "do NOT generate Block A/B as prompt steps" instruction
+- Fixes: Issues 2, 3, 14, 15. Partially: 4.
+
+**Phase 3 (if still failing after Phase 2):**
 - Solution D — reorder knowledge files behind prompt, add task-specific system prompt
-- Fixes: Issues 1, 5, 6, 7, 9. Partially: 4, 13, 14.
+- Fixes: Issues 6, 7.
 
-**Phase 2 (prompt restructure, no code changes):**
-- Solution B — separate "rules for you" vs. "rules to embed" with explicit audience labels
-- Fixes: Issues 3, 14. Partially: 2, 4.
-
-**Phase 3 (if still failing after Phase 1+2):**
+**Phase 4 (if still failing after Phase 2+3):**
 - Solution A — two-pass generation (prompts 1-4, then 5-8)
-- Fixes: Issues 1, 2, 4, 9 completely.
 
-**Phase 4 (if maximum quality is required for every user):**
+**Phase 5 (if maximum quality is required for every user):**
 - Solution F — one prompt per call (expensive but guaranteed)
-- Fixes: Issues 1, 4, 5, 9 completely. Partially: 2, 10, 13.
