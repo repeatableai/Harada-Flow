@@ -85,10 +85,6 @@ export default function AdminDashboard() {
   const [copiedStepIndex, setCopiedStepIndex] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
 
-  // Activity log state
-  const [activityLogs, setActivityLogs] = useState({ data: [], pagination: {} });
-  const [activityStats, setActivityStats] = useState(null);
-  const [activityPage, setActivityPage] = useState(1);
 
   // Check admin access - now supports DEPARTMENT_ADMIN and above
   useEffect(() => {
@@ -106,8 +102,6 @@ export default function AdminDashboard() {
     // loadTimeStudies(1);
     loadSavedPromptsStats();
     loadSavedPrompts(1);
-    loadActivityStats();
-    loadActivityLogs(1);
     if (isSuperAdmin()) {
       loadAllUsers();
     }
@@ -190,29 +184,6 @@ export default function AdminDashboard() {
       setSavedPromptsStats(data);
     } catch (error) {
       console.error('Failed to load saved prompts stats:', error);
-    }
-  };
-
-  const loadActivityStats = async () => {
-    try {
-      const data = await apiClient.admin.getActivityStats();
-      setActivityStats(data);
-    } catch (error) {
-      console.error('Failed to load activity stats:', error);
-    }
-  };
-
-  const loadActivityLogs = async (page) => {
-    try {
-      const data = await apiClient.admin.getActivityLogs({
-        page,
-        limit: 10,
-        resourceType: 'knowledge_file',
-      });
-      setActivityLogs(data);
-      setActivityPage(page);
-    } catch (error) {
-      console.error('Failed to load activity logs:', error);
     }
   };
 
@@ -349,10 +320,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="knowledge-files" className="data-[state=active]:bg-white/20 text-white">
               <FolderOpen className="w-4 h-4 mr-2" />
               Knowledge Files
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="data-[state=active]:bg-white/20 text-white">
-              <Activity className="w-4 h-4 mr-2" />
-              Activity
             </TabsTrigger>
             {/* Management tabs - role-based visibility */}
             <TabsTrigger value="user-management" className="data-[state=active]:bg-white/20 text-white">
@@ -999,129 +966,6 @@ export default function AdminDashboard() {
           </TabsContent>
 
           {/* Activity Tab */}
-          <TabsContent value="activity" className="space-y-4">
-            {/* Activity Stats */}
-            {activityStats && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card className="bg-gradient-to-br from-indigo-900/50 to-indigo-800/30 border-indigo-500/30">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-indigo-200">Total Activity</CardDescription>
-                    <CardTitle className="text-2xl text-white">
-                      {activityStats.totalLogs || 0}
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-                <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-green-200">File Uploads</CardDescription>
-                    <CardTitle className="text-2xl text-white">
-                      {activityStats.byType?.file_upload || 0}
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-                <Card className="bg-white/10 border-white/20">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-blue-200">This Week</CardDescription>
-                    <CardTitle className="text-2xl text-white">
-                      {activityStats.recentLogs || 0}
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              </div>
-            )}
-
-            {/* Activity Log Table */}
-            <Card className="bg-white/10 border-white/20">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-indigo-400" />
-                  Knowledge File Activity
-                </CardTitle>
-                <CardDescription className="text-blue-200">
-                  File uploads and access within your {isDeptAdmin ? 'department' : isCompanyAdmin() && !isSuperAdmin() ? 'company' : 'organization'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/10">
-                        <th className="text-left p-4 text-blue-200 font-medium">Activity</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">File</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">User</th>
-                        <th className="text-left p-4 text-blue-200 font-medium">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activityLogs.data?.map((log) => (
-                        <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
-                          <td className="p-4">
-                            <Badge
-                              variant="outline"
-                              className={
-                                log.activityType === 'file_upload'
-                                  ? 'border-green-400 text-green-300'
-                                  : 'border-blue-400 text-blue-300'
-                              }
-                            >
-                              {log.activityType === 'file_upload' ? 'Upload' : 'Access'}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <p className="text-white text-sm">{log.metadata?.fileName || '-'}</p>
-                            <p className="text-blue-300 text-xs">{log.metadata?.fileType || '-'}</p>
-                          </td>
-                          <td className="p-4 text-blue-300 text-sm">
-                            {log.metadata?.userName || '-'}
-                          </td>
-                          <td className="p-4 text-blue-300 text-sm">
-                            {formatDate(log.createdAt)}
-                          </td>
-                        </tr>
-                      ))}
-                      {(!activityLogs.data || activityLogs.data.length === 0) && (
-                        <tr>
-                          <td colSpan="4" className="p-8 text-center text-blue-300">
-                            No activity recorded yet. File uploads and downloads will appear here.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {activityLogs.pagination?.totalPages > 1 && (
-                  <div className="flex items-center justify-between p-4 border-t border-white/10">
-                    <p className="text-blue-300 text-sm">
-                      Page {activityLogs.pagination.page} of {activityLogs.pagination.totalPages}
-                      {activityLogs.pagination.total && ` (${activityLogs.pagination.total} total)`}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => loadActivityLogs(activityPage - 1)}
-                        disabled={activityPage <= 1}
-                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => loadActivityLogs(activityPage + 1)}
-                        disabled={activityPage >= activityLogs.pagination.totalPages}
-                        className="bg-white/10 border border-white/20 text-white hover:bg-white/20"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* User Management Tab */}
           <TabsContent value="user-management" className="space-y-4">
