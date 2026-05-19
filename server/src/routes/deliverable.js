@@ -201,13 +201,19 @@ router.post('/executive', async (req, res, next) => {
     }
     const blocks = [];
 
-    for (const blockFile of ['BlockA.md', 'BlockB.md']) {
-      const blockPath = path.join(blocksDir, blockFile);
+    const blockDefs = [
+      { file: 'BlockA.md', title: 'Block A — Always-On Engine Instructions' },
+      { file: 'BlockB.md', title: 'Block B — Deliverable Interpretation Logic' },
+      { file: 'BlockC.md', title: 'Block C — Attending Asset Discovery & Parallel Production Queue' },
+      { file: 'BlockD.md', title: 'Block D — Portfolio Hub — Deliverable Navigation Dashboard' },
+    ];
+    for (const blockDef of blockDefs) {
+      const blockPath = path.join(blocksDir, blockDef.file);
       if (fs.existsSync(blockPath)) {
         const content = fs.readFileSync(blockPath, 'utf-8');
         blocks.push({
-          name: blockFile.replace('.md', ''),
-          title: blockFile === 'BlockA.md' ? 'Block A — Always-On Engine Instructions' : 'Block B — Deliverable Interpretation Logic',
+          name: blockDef.file.replace('.md', ''),
+          title: blockDef.title,
           content,
         });
       }

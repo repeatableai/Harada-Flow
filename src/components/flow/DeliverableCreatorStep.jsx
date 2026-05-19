@@ -291,20 +291,14 @@ ${company.company_url ? `Company URL: ${company.company_url}` : ''}
 Generate a DCE (Deliverable Creation Engine) prompt pack for creating this deliverable. Each prompt follows the DCE methodology which ensures world-class outputs through iterative refinement, expert validation, and comprehensive ecosystem thinking.
 
 ═══════════════════════════════════════════════════
-STRUCTURAL REQUIREMENT — READ THIS FIRST
+YOUR TASK
 ═══════════════════════════════════════════════════
 
-Your JSON output has THREE separate sections. You must fill ALL THREE:
+Generate ONLY the deliverable BUILD steps (Prompts 1-7+). These are the prompts that create the actual deliverable through iterative refinement.
 
-1. "build_prompts" — An array of 6-8 deliverable build steps (spec, draft, QA, revisions, stress test, pre-mortem, and any additional steps the deliverable requires). Go deep on domain-specific content here.
+Attending Asset Discovery and Portfolio Hub are handled separately as Block C and Block D — they are already loaded in the user's session. Do NOT generate them. Do NOT generate Block A or Block B content either.
 
-2. "attending_asset_discovery" — A SEPARATE JSON object (not part of the build_prompts array). This is a comprehensive ecosystem scan identifying every supporting asset the ${company.job_title} needs to actually IMPLEMENT the deliverable in their organization. Without these attending assets, the primary deliverable cannot be deployed. Generate a complete Parallel Production Queue with a self-contained prompt for each asset.
-
-3. "portfolio_hub" — A SEPARATE JSON object (not part of the build_prompts array). This is the prompt for generating an interactive HTML navigation dashboard for the entire engagement.
-
-All three sections are REQUIRED. Do NOT put Attending Asset Discovery or Portfolio Hub content inside the build_prompts array. They are separate fields.
-
-Do NOT generate Block A or Block B governance content in any section — they are separate documents already loaded in the user's session.
+Focus entirely on producing comprehensive, domain-specific build prompts that take the deliverable from specification through final polished version.
 
 ═══════════════════════════════════════════════════
 
@@ -409,167 +403,58 @@ PROMPT 6: Pre-Mortem + Final Edit Gate
 - Present all proposed final edits as a numbered list with clear before/after descriptions
 - Question: Accept all final edits, select specific edits, request additional analysis, or proceed to final
 
-PROMPT 7: Final Deliverable + Time Study + Attending Asset Discovery
+PROMPT 7: Final Deliverable + Time Study + Implementation Guide
 - Produce the POLISHED FINAL VERSION incorporating all approved edits
 - Calculate complete time study: baseline manual hours, actual AI-assisted hours, percentage reduction, dollar savings, projected annual ROI if applicable
 - Summarize the complete journey: key improvements made across V1→V2→V3→Final, expert contributions integrated, stress test results
 - Provide implementation guidance: who uses this, when, how, what training is needed
-
-THEN — ATTENDING ASSET DISCOVERY (critical new section in Prompt 7):
-After completing the final deliverable, perform a comprehensive ecosystem scan. Examine what was just built and identify EVERY attending asset, collateral document, tool, communication, training material, form, survey, presentation, email sequence, landing page, dashboard, or supporting deliverable that this primary deliverable requires to function in a real operational environment.
-
-For each attending asset identified:
-  (a) Name and brief description
-  (b) Why it's required (what breaks or degrades without it)
-  (c) Triage Tier:
-      - MUST-HAVE NOW — the primary deliverable cannot function without this
-      - SHOULD-HAVE SOON — meaningfully improves effectiveness within 30 days
-      - NICE-TO-HAVE LATER — adds value but not on the critical path
-  (d) Dependencies — what must exist before this asset can be built (list other assets or "None")
-  (e) Complexity — Simple (single prompt) or Complex (DCE-structured multi-prompt)
-
-Then generate a COMPLETE PARALLEL PRODUCTION QUEUE FILE containing a self-contained copy-paste prompt for EVERY identified attending asset. Each prompt in this file must include:
-
-  --- START OF ATTENDING ASSET PROMPT: [Asset Name] ---
-  TIER: [Must-Have Now / Should-Have Soon / Nice-to-Have Later]
-  DEPENDS ON: [List or "None — can be built immediately"]
-  COMPLEXITY: [Simple / Complex — if Complex, prompt is a mini-DCE pack]
-
-  [UNIVERSAL CONTEXT BLOCK]
-  Role: [carried from primary session]
-  Industry: [carried from primary session]
-  Company Size: [carried from primary session]
-  Company URL: [if applicable]
-  Primary Deliverable: [name and brief description of what was built in the main DCE session]
-  Key Decisions Made: [summary of MCQ answers and structural choices from the primary session that affect this asset]
-  Version Lock: Based on [Primary Deliverable Name] Final Version — [Date]
-
-  [MAGIC WAND INSTRUCTION]
-  If you had a magic wand — where even suspending the laws of gravity you could imagineer the solution in detail — describe it. Then give a brutal pre-mortem of every point of failure. Then convene a panel of 5 world-renowned domain experts to debate best strategy.
-
-  [ASSET-SPECIFIC INSTRUCTION]
-  [Complete, comprehensive, production-ready prompt for building this specific asset. NOT a summary — a full prompt with all context, specifications, scope, acceptance criteria, and structural requirements. For Complex assets, structure as a condensed DCE sequence: Draft → QA → Refine → Finalize, with MCQ decision points.]
-
-  [OUTPUT RULES]
-  Font: Inter only, never serif. WCAG AA contrast.
-  MCQ format: A through minimum G. Include Best Practices, Synthetic Data, All of the Above.
-  Completion-first: produce complete deployable content, never outlines.
-  Context window: Alert at 50%. Warning at 75%. Handoff document at 80%.
-  Output blocks: [ARTIFACT], [TIME_STUDY], [QUESTION] in every response.
-
-  [REVIEW REQUIREMENTS]
-  Must be reviewed by: [Legal / Compliance / None / specific role — based on asset type and industry]
-  --- END OF ATTENDING ASSET PROMPT: [Asset Name] ---
-
-The attending asset prompts must be informed by EVERYTHING that occurred across Prompts 1-7. Every decision, every structural choice, every data point, every expert recommendation, every stress test finding that is relevant to the attending asset must be carried into its prompt. These are not generic templates — they are context-rich, session-aware production prompts.
-
-ALSO include in the Prompt 7 output: a PORTFOLIO HUB GENERATION PROMPT as one of the Must-Have Now attending assets. This prompt instructs the AI to create an interactive HTML navigation dashboard (Kanban-style card layout) displaying every artifact produced in the engagement — primary deliverables from Prompts 1-7, all attending assets (built and queued), organized by session/type/status. Each card must be clickable and link to the corresponding artifact file. The hub uses Inter font, dark/light theme toggle (top-right, default dark, Shift+T, localStorage), WCAG AA contrast, pastel-backed cards with color-coded accent bars by type, hover/click expand for descriptions and metadata. Include the full artifact inventory with names, types, sessions, statuses, and file references.
-
-Question: Review the attending asset inventory and parallel production queue. Confirm the inventory is complete, request additions, adjust triage tiers, or proceed to Prompt 8.
-
-PROMPT 8: Portfolio Hub — Deliverable Navigation Dashboard
-- Generate an interactive HTML artifact that serves as the master navigation hub for the entire DCE engagement
-- Layout: Kanban-style card grid, organized by category (Primary Deliverables, Attending Assets by Tier, Collateral)
-- Each card displays: artifact name, type badge (Word/Excel/PDF/HTML/Link), session number, status (Complete/Queued/In Progress), brief description
-- Each card is CLICKABLE — include a placeholder URL field that the user will populate with the actual file link after production
-- Include a narrative section at the top explaining how the deliverables were built (the DCE methodology story: Dossier → Spark → Deliverable Request → Build → Portfolio)
-- Include engagement metadata: client name, sponsor, deliverable name, date, total artifact count, total time saved
-- Design: Inter font only. Dark/light toggle top-right (default dark, Shift+T shortcut, localStorage 'dce_theme'). WCAG AA. Pastel card backgrounds with color-coded accent bars by type. Hover expands card detail. Click opens artifact link.
-- Include a "Download as HTML" function so the user can save and share the hub as a standalone file
-- Include a print-friendly mode
-- Footer: "Generated by Repeatable AI | DCE Methodology | [Date]"
-- This prompt should produce a COMPLETE, FUNCTIONAL HTML file — not a template, not a wireframe. The user pastes this prompt, the AI produces the working hub, the user adds their artifact links, done.
+- Note: After completing all build steps, the user will execute Block C (Attending Asset Discovery) and Block D (Portfolio Hub) which are already loaded in their session.
 
 ═══════════════════════════════════════════════════
-OUTPUT FORMAT — THREE SEPARATE SECTIONS
-═══════════════════════════════════════════════════
 
-Return the data in JSON format with THREE separate sections. Each section is a distinct output — generate them independently.
-
+Return the data in JSON format with this structure:
 {
   "deliverable_name": "${selectedDeliverable.name}",
-  "overview": "Brief overview of this DCE prompt pack. Mention that the user should paste Block A and Block B into their Claude session BEFORE running these prompts.",
-  "build_prompts": [
+  "overview": "Brief overview of this DCE prompt pack. Mention that the user should paste Blocks A, B, C, and D into their Claude session BEFORE running these build prompts. Block C (Attending Asset Discovery) and Block D (Portfolio Hub) will execute automatically after the final build step.",
+  "prompts": [
     {
       "step": 1,
       "title": "Context Distillation + Spec",
-      "description": "What this step accomplishes",
+      "description": "What this step accomplishes in the DCE workflow",
       "prompt": "The COMPLETE, SELF-CONTAINED prompt to copy and paste..."
     }
-  ],
-  "attending_asset_discovery": {
-    "title": "Attending Asset Discovery + Parallel Production Queue",
-    "description": "Comprehensive ecosystem scan identifying every supporting asset needed to implement the primary deliverable, followed by a complete parallel production queue with self-contained prompts for building each asset.",
-    "prompt": "The COMPLETE prompt for attending asset discovery — must reference everything built in the build_prompts above. Identify every supporting document, tool, template, training material, dashboard, communication, form, survey, presentation, email sequence, landing page, and collateral that the primary deliverable requires to function in a real operational environment. Then generate the full Parallel Production Queue with a self-contained prompt for each asset."
-  },
-  "portfolio_hub": {
-    "title": "Portfolio Hub — Deliverable Navigation Dashboard",
-    "description": "Interactive HTML dashboard that serves as the master navigation hub for the entire DCE engagement.",
-    "prompt": "The COMPLETE prompt for generating the Portfolio Hub HTML artifact — Kanban-style card layout displaying every artifact produced including all build step deliverables and all attending assets. Inter font, dark/light toggle, WCAG AA, clickable cards, download as HTML, print-friendly mode."
-  }
+  ]
 }
 
-CRITICAL QUALITY REQUIREMENTS:
+CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and COMPREHENSIVE. These are not summaries or outlines. Each prompt should be 800-2000+ words of detailed, specific instruction. The user copies one prompt, pastes it into a Claude.ai session that already has Blocks A, B, C, and D loaded. Each prompt must carry the role context, deliverable name, and complete step-specific instructions. Reference Block A/B rules as active rather than repeating them verbatim. Err on the side of too much step-specific content rather than too little.
 
-1. build_prompts: Each prompt must be 800-2000+ words. Generate 6-8 build prompts covering the full deliverable creation lifecycle (spec, draft, QA, revisions, stress test, pre-mortem/final). Go deep on domain-specific content.
-
-2. attending_asset_discovery: This prompt must be COMPREHENSIVE. Reference the specific deliverables, frameworks, data structures, and expert recommendations from every build prompt. Identify every asset the ${company.job_title} needs to actually DEPLOY the deliverable. Generate complete, context-rich prompts for each attending asset in the Parallel Production Queue. This is not generic — it must reflect everything built in the build steps.
-
-3. portfolio_hub: This prompt must produce a COMPLETE, FUNCTIONAL HTML file specification. Not a template, not a wireframe. Include all engagement metadata, all artifact inventory, Kanban layout, and design specs.
-
-Do NOT generate Block A or Block B content in any section.
+Do NOT generate Block A, B, C, or D content as a prompt step. Generate only the deliverable build steps (Prompts 1-7+).
 `;
 
       const result = await InvokeLLM({
         prompt: prompt,
         add_context_from_internet: !!company.company_url,
-        // Use strict tool_use mode — grammar-constrained sampling enforces the schema at the token level
-        tool_use_schema: {
-          name: 'generate_dce_pack',
-          description: 'Generate the DCE prompt pack with build prompts, attending asset discovery, and portfolio hub as separate required sections.',
-          input_schema: {
-            type: "object",
-            properties: {
-              deliverable_name: { type: "string" },
-              overview: { type: "string" },
-              build_prompts: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    step: { type: "number" },
-                    title: { type: "string" },
-                    description: { type: "string" },
-                    prompt: { type: "string" }
-                  },
-                  required: ["step", "title", "description", "prompt"],
-                  additionalProperties: false
-                }
-              },
-              attending_asset_discovery: {
+        response_json_schema: {
+          type: "object",
+          properties: {
+            deliverable_name: { type: "string" },
+            overview: { type: "string" },
+            prompts: {
+              type: "array",
+              minItems: 6,
+              items: {
                 type: "object",
                 properties: {
+                  step: { type: "number" },
                   title: { type: "string" },
                   description: { type: "string" },
                   prompt: { type: "string" }
                 },
-                required: ["title", "description", "prompt"],
-                additionalProperties: false
-              },
-              portfolio_hub: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  prompt: { type: "string" }
-                },
-                required: ["title", "description", "prompt"],
-                additionalProperties: false
+                required: ["step", "title", "description", "prompt"]
               }
-            },
-            required: ["deliverable_name", "overview", "build_prompts", "attending_asset_discovery", "portfolio_hub"],
-            additionalProperties: false
-          }
+            }
+          },
+          required: ["deliverable_name", "overview", "prompts"]
         },
         // Time study tracking
         operationType: 'deliverable_prompts',
@@ -581,34 +466,7 @@ Do NOT generate Block A or Block B content in any section.
         deliverableName: selectedDeliverable.name,
       });
 
-      // Merge the three schema sections into a single prompts array
-      // so all downstream UI and save logic works unchanged
-      const buildPrompts = (result.build_prompts || []).map((p, i) => ({
-        ...p,
-        step: i + 1,
-      }));
-      const allPrompts = [
-        ...buildPrompts,
-        {
-          step: buildPrompts.length + 1,
-          title: result.attending_asset_discovery?.title || 'Attending Asset Discovery',
-          description: result.attending_asset_discovery?.description || '',
-          prompt: result.attending_asset_discovery?.prompt || '',
-        },
-        {
-          step: buildPrompts.length + 2,
-          title: result.portfolio_hub?.title || 'Portfolio Hub',
-          description: result.portfolio_hub?.description || '',
-          prompt: result.portfolio_hub?.prompt || '',
-        },
-      ];
-      const mergedResult = {
-        deliverable_name: result.deliverable_name,
-        overview: result.overview,
-        prompts: allPrompts,
-      };
-
-      setGeneratedPrompts(mergedResult);
+      setGeneratedPrompts(result);
       setStep('view');
 
       // Auto-save the generated prompts
@@ -617,8 +475,8 @@ Do NOT generate Block A or Block B content in any section.
           deliverable_name: selectedDeliverable.name,
           deliverable_type: selectedDeliverable.type,
           column_name: selectedDeliverable.column || null,
-          overview: mergedResult.overview,
-          prompts: mergedResult.prompts,
+          overview: result.overview,
+          prompts: result.prompts,
           // Include custom deliverable info if applicable
           is_custom: selectedDeliverable.isCustom || false,
           custom_input: selectedDeliverable.isCustom ? selectedDeliverable.name : null,
