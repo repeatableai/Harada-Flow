@@ -106,7 +106,7 @@ export async function invokeLLM({
     console.log('Starting streaming request to Anthropic...');
     const stream = anthropic.messages.stream({
       model: config.anthropic.model,
-      max_tokens: 32768,
+      max_tokens: 128000,
       system: systemMessage,
       messages: [
         {
@@ -136,6 +136,15 @@ export async function invokeLLM({
 
     console.log(`Streaming complete: ${chunkCount} total chunks, ${content.length} total chars`);
 
+    // Check stop_reason — detect truncation before parsing
+    const finalMessage = await stream.finalMessage();
+    const stopReason = finalMessage?.stop_reason;
+    console.log(`Stop reason: ${stopReason}`);
+    if (stopReason === 'max_tokens') {
+      console.error('OUTPUT TRUNCATED — hit max_tokens ceiling. Output length:', content.length);
+      throw new Error('Generation truncated: output exceeded token limit. Try reducing input context or splitting the request.');
+    }
+
     if (!content) {
       throw new Error('No response content from Anthropic');
     }
@@ -158,6 +167,21 @@ export async function invokeLLM({
         cleanedContent = cleanedContent.trim();
 
         const parsed = JSON.parse(cleanedContent);
+
+        // Validate prompt pack completeness if this is a deliverable_prompts generation
+        if (parsed.prompts && Array.isArray(parsed.prompts)) {
+          console.log(`Prompt pack: ${parsed.prompts.length} prompts generated`);
+          if (parsed.prompts.length < 8) {
+            console.warn(`INCOMPLETE: Expected 8 prompts, got ${parsed.prompts.length}`);
+          }
+          for (let i = 0; i < parsed.prompts.length; i++) {
+            const promptLen = parsed.prompts[i]?.prompt?.length || 0;
+            console.log(`  Prompt ${i + 1}: ${promptLen} chars`);
+            if (promptLen < 2000) {
+              console.warn(`  WARNING: Prompt ${i + 1} is thin (${promptLen} chars, min recommended: 2000)`);
+            }
+          }
+        }
 
         // Save time study if tracking params provided
         await saveTimeStudyIfTracking({
