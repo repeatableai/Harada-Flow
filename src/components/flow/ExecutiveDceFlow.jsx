@@ -120,9 +120,39 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
         deliverableName: deliverable.name,
       });
 
-      setGeneratedPrompts(result);
+      // Merge the three schema sections into a unified prompts array
+      // Supports both old shape (result.prompts) and new shape (result.build_prompts + attending_asset_discovery + portfolio_hub)
+      let mergedPrompts;
+      if (result.build_prompts) {
+        const buildPrompts = result.build_prompts.map((p, i) => ({ ...p, step: i + 1 }));
+        mergedPrompts = [
+          ...buildPrompts,
+          {
+            step: buildPrompts.length + 1,
+            title: result.attending_asset_discovery?.title || 'Attending Asset Discovery',
+            description: result.attending_asset_discovery?.description || '',
+            prompt: result.attending_asset_discovery?.prompt || '',
+          },
+          {
+            step: buildPrompts.length + 2,
+            title: result.portfolio_hub?.title || 'Portfolio Hub',
+            description: result.portfolio_hub?.description || '',
+            prompt: result.portfolio_hub?.prompt || '',
+          },
+        ];
+      } else {
+        mergedPrompts = result.prompts || [];
+      }
 
-      // Auto-save prompts — include dossier + Block A/B + the 8 generated steps
+      const mergedResult = {
+        deliverable_name: result.deliverable_name,
+        overview: result.overview,
+        prompts: mergedPrompts,
+      };
+
+      setGeneratedPrompts(mergedResult);
+
+      // Auto-save prompts — include dossier + Block A/B + the generated steps
       try {
         const allPrompts = [];
 
@@ -158,9 +188,9 @@ export default function ExecutiveDceFlow({ company, deliverable, sessionZeroDoss
           });
         }
 
-        // Steps 1-8: Generated prompts (renumber to follow dossier + blocks + perplexity)
+        // Generated prompts (renumber to follow dossier + blocks + perplexity)
         const offset = allPrompts.length;
-        result.prompts.forEach((p, i) => {
+        mergedPrompts.forEach((p, i) => {
           allPrompts.push({
             ...p,
             step: offset + i + 1,

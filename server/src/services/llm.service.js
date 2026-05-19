@@ -159,18 +159,38 @@ export async function invokeLLM({
 
         const parsed = JSON.parse(cleanedContent);
 
-        // Validate prompt pack completeness if this is a deliverable_prompts generation
-        if (parsed.prompts && Array.isArray(parsed.prompts)) {
-          console.log(`Prompt pack: ${parsed.prompts.length} prompts generated`);
-          if (parsed.prompts.length < 8) {
-            console.warn(`INCOMPLETE: Expected 8 prompts, got ${parsed.prompts.length}`);
+        // Validate prompt pack completeness — supports both old (prompts) and new (build_prompts) schema
+        const promptArray = parsed.build_prompts || parsed.prompts;
+        if (promptArray && Array.isArray(promptArray)) {
+          console.log(`Prompt pack: ${promptArray.length} build prompts generated`);
+          if (promptArray.length < 6) {
+            console.warn(`INCOMPLETE: Expected 6+ build prompts, got ${promptArray.length}`);
           }
-          for (let i = 0; i < parsed.prompts.length; i++) {
-            const promptLen = parsed.prompts[i]?.prompt?.length || 0;
+          for (let i = 0; i < promptArray.length; i++) {
+            const promptLen = promptArray[i]?.prompt?.length || 0;
             console.log(`  Prompt ${i + 1}: ${promptLen} chars`);
             if (promptLen < 2000) {
               console.warn(`  WARNING: Prompt ${i + 1} is thin (${promptLen} chars, min recommended: 2000)`);
             }
+          }
+          // Validate attending_asset_discovery and portfolio_hub if present
+          if (parsed.attending_asset_discovery) {
+            const aadLen = parsed.attending_asset_discovery.prompt?.length || 0;
+            console.log(`  Attending Asset Discovery: ${aadLen} chars`);
+            if (aadLen < 1000) {
+              console.warn(`  WARNING: Attending Asset Discovery is thin (${aadLen} chars)`);
+            }
+          } else if (parsed.build_prompts) {
+            console.warn(`  MISSING: attending_asset_discovery field not found`);
+          }
+          if (parsed.portfolio_hub) {
+            const phLen = parsed.portfolio_hub.prompt?.length || 0;
+            console.log(`  Portfolio Hub: ${phLen} chars`);
+            if (phLen < 500) {
+              console.warn(`  WARNING: Portfolio Hub is thin (${phLen} chars)`);
+            }
+          } else if (parsed.build_prompts) {
+            console.warn(`  MISSING: portfolio_hub field not found`);
           }
         }
 
