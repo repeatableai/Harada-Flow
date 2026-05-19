@@ -523,45 +523,53 @@ Do NOT generate Block A or Block B content in any section.
       const result = await InvokeLLM({
         prompt: prompt,
         add_context_from_internet: !!company.company_url,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            deliverable_name: { type: "string" },
-            overview: { type: "string" },
-            build_prompts: {
-              type: "array",
-              minItems: 6,
-              items: {
+        // Use strict tool_use mode — grammar-constrained sampling enforces the schema at the token level
+        tool_use_schema: {
+          name: 'generate_dce_pack',
+          description: 'Generate the DCE prompt pack with build prompts, attending asset discovery, and portfolio hub as separate required sections.',
+          input_schema: {
+            type: "object",
+            properties: {
+              deliverable_name: { type: "string" },
+              overview: { type: "string" },
+              build_prompts: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    step: { type: "number" },
+                    title: { type: "string" },
+                    description: { type: "string" },
+                    prompt: { type: "string" }
+                  },
+                  required: ["step", "title", "description", "prompt"],
+                  additionalProperties: false
+                }
+              },
+              attending_asset_discovery: {
                 type: "object",
                 properties: {
-                  step: { type: "number" },
                   title: { type: "string" },
                   description: { type: "string" },
                   prompt: { type: "string" }
                 },
-                required: ["step", "title", "description", "prompt"]
+                required: ["title", "description", "prompt"],
+                additionalProperties: false
+              },
+              portfolio_hub: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  prompt: { type: "string" }
+                },
+                required: ["title", "description", "prompt"],
+                additionalProperties: false
               }
             },
-            attending_asset_discovery: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                description: { type: "string" },
-                prompt: { type: "string" }
-              },
-              required: ["title", "description", "prompt"]
-            },
-            portfolio_hub: {
-              type: "object",
-              properties: {
-                title: { type: "string" },
-                description: { type: "string" },
-                prompt: { type: "string" }
-              },
-              required: ["title", "description", "prompt"]
-            }
-          },
-          required: ["deliverable_name", "overview", "build_prompts", "attending_asset_discovery", "portfolio_hub"]
+            required: ["deliverable_name", "overview", "build_prompts", "attending_asset_discovery", "portfolio_hub"],
+            additionalProperties: false
+          }
         },
         // Time study tracking
         operationType: 'deliverable_prompts',

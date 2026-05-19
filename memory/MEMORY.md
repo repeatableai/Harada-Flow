@@ -1,0 +1,1 @@
+- [Jalal feedback on agents](project_jalal_asymmetric_dev.md) — Jalal suggested agents may not be ideal; mentioned "asymmetrical development"

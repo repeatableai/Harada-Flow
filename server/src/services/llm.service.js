@@ -14,6 +14,8 @@ const anthropic = new Anthropic({
 export async function invokeLLM({
   prompt,
   response_json_schema,
+  // NEW: strict tool_use schema — when provided, uses grammar-constrained tool_use instead of text generation
+  tool_use_schema,
   add_context_from_internet,
   company_url,
   // Additional knowledge files as context
@@ -102,7 +104,79 @@ export async function invokeLLM({
       }
     }
 
-    // Use streaming to prevent connection timeouts on large responses
+    // ═══ PATH A: Strict tool_use mode (grammar-constrained schema enforcement) ═══
+    if (tool_use_schema) {
+      console.log('Using strict tool_use mode for schema-enforced generation...');
+      const stream = anthropic.messages.stream({
+        model: config.anthropic.model,
+        max_tokens: 128000,
+        system: systemMessage,
+        messages: [{ role: 'user', content: enrichedPrompt }],
+        tools: [{
+          name: tool_use_schema.name || 'generate_structured_output',
+          description: tool_use_schema.description || 'Generate structured output matching the schema',
+          strict: true,
+          input_schema: tool_use_schema.input_schema,
+        }],
+        tool_choice: { type: 'tool', name: tool_use_schema.name || 'generate_structured_output' },
+      });
+
+      // Accumulate streamed tool_use input JSON
+      let toolInput = '';
+      let chunkCount = 0;
+
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta?.type === 'input_json_delta') {
+          toolInput += event.delta.partial_json;
+          chunkCount++;
+          if (chunkCount % 50 === 0) {
+            console.log(`Tool streaming progress: ${chunkCount} chunks, ${toolInput.length} chars received`);
+            if (onProgress) {
+              onProgress({ chunks: chunkCount, chars: toolInput.length });
+            }
+          }
+        }
+      }
+
+      console.log(`Tool streaming complete: ${chunkCount} total chunks, ${toolInput.length} total chars`);
+
+      if (!toolInput) {
+        throw new Error('No tool_use input received from Anthropic');
+      }
+
+      const parsed = JSON.parse(toolInput);
+
+      // Validate prompt pack completeness
+      const promptArray = parsed.build_prompts || parsed.prompts;
+      if (promptArray && Array.isArray(promptArray)) {
+        console.log(`Prompt pack: ${promptArray.length} build prompts generated`);
+        for (let i = 0; i < promptArray.length; i++) {
+          const promptLen = promptArray[i]?.prompt?.length || 0;
+          console.log(`  Prompt ${i + 1}: ${promptLen} chars`);
+          if (promptLen < 2000) {
+            console.warn(`  WARNING: Prompt ${i + 1} is thin (${promptLen} chars, min recommended: 2000)`);
+          }
+        }
+        if (parsed.attending_asset_discovery) {
+          console.log(`  Attending Asset Discovery: ${parsed.attending_asset_discovery.prompt?.length || 0} chars`);
+        } else {
+          console.warn(`  MISSING: attending_asset_discovery`);
+        }
+        if (parsed.portfolio_hub) {
+          console.log(`  Portfolio Hub: ${parsed.portfolio_hub.prompt?.length || 0} chars`);
+        } else {
+          console.warn(`  MISSING: portfolio_hub`);
+        }
+      }
+
+      await saveTimeStudyIfTracking({
+        startTime, operationType, operationName, companyId, userId, industry, companySize, deliverableName,
+      });
+
+      return parsed;
+    }
+
+    // ═══ PATH B: Standard text generation (existing behavior for matrices, role extraction, etc.) ═══
     console.log('Starting streaming request to Anthropic...');
     const stream = anthropic.messages.stream({
       model: config.anthropic.model,
@@ -124,7 +198,6 @@ export async function invokeLLM({
       if (event.type === 'content_block_delta' && event.delta?.text) {
         content += event.delta.text;
         chunkCount++;
-        // Send progress callback every 50 chunks to keep SSE connection alive
         if (chunkCount % 50 === 0) {
           console.log(`Streaming progress: ${chunkCount} chunks, ${content.length} chars received`);
           if (onProgress) {
@@ -143,10 +216,7 @@ export async function invokeLLM({
     // Parse JSON response if schema was provided
     if (response_json_schema) {
       try {
-        // Clean the response - remove any markdown code blocks if present
         let cleanedContent = content.trim();
-
-        // Remove markdown code blocks if present
         if (cleanedContent.startsWith('```json')) {
           cleanedContent = cleanedContent.slice(7);
         } else if (cleanedContent.startsWith('```')) {
@@ -159,73 +229,21 @@ export async function invokeLLM({
 
         const parsed = JSON.parse(cleanedContent);
 
-        // Validate prompt pack completeness — supports both old (prompts) and new (build_prompts) schema
-        const promptArray = parsed.build_prompts || parsed.prompts;
-        if (promptArray && Array.isArray(promptArray)) {
-          console.log(`Prompt pack: ${promptArray.length} build prompts generated`);
-          if (promptArray.length < 6) {
-            console.warn(`INCOMPLETE: Expected 6+ build prompts, got ${promptArray.length}`);
-          }
-          for (let i = 0; i < promptArray.length; i++) {
-            const promptLen = promptArray[i]?.prompt?.length || 0;
-            console.log(`  Prompt ${i + 1}: ${promptLen} chars`);
-            if (promptLen < 2000) {
-              console.warn(`  WARNING: Prompt ${i + 1} is thin (${promptLen} chars, min recommended: 2000)`);
-            }
-          }
-          // Validate attending_asset_discovery and portfolio_hub if present
-          if (parsed.attending_asset_discovery) {
-            const aadLen = parsed.attending_asset_discovery.prompt?.length || 0;
-            console.log(`  Attending Asset Discovery: ${aadLen} chars`);
-            if (aadLen < 1000) {
-              console.warn(`  WARNING: Attending Asset Discovery is thin (${aadLen} chars)`);
-            }
-          } else if (parsed.build_prompts) {
-            console.warn(`  MISSING: attending_asset_discovery field not found`);
-          }
-          if (parsed.portfolio_hub) {
-            const phLen = parsed.portfolio_hub.prompt?.length || 0;
-            console.log(`  Portfolio Hub: ${phLen} chars`);
-            if (phLen < 500) {
-              console.warn(`  WARNING: Portfolio Hub is thin (${phLen} chars)`);
-            }
-          } else if (parsed.build_prompts) {
-            console.warn(`  MISSING: portfolio_hub field not found`);
-          }
-        }
-
-        // Save time study if tracking params provided
         await saveTimeStudyIfTracking({
-          startTime,
-          operationType,
-          operationName,
-          companyId,
-          userId,
-          industry,
-          companySize,
-          deliverableName,
+          startTime, operationType, operationName, companyId, userId, industry, companySize, deliverableName,
         });
 
         return parsed;
       } catch (parseError) {
         console.error('Failed to parse LLM JSON response:', content);
         console.error('Parse error:', parseError.message);
-        // Include first 500 chars of response in error for debugging
         const preview = content.substring(0, 500);
         throw new Error(`Invalid JSON response from LLM. Preview: ${preview}`);
       }
     }
 
-    // Save time study if tracking params provided
     await saveTimeStudyIfTracking({
-      startTime,
-      operationType,
-      operationName,
-      companyId,
-      userId,
-      industry,
-      companySize,
-      deliverableName,
+      startTime, operationType, operationName, companyId, userId, industry, companySize, deliverableName,
     });
 
     return content;

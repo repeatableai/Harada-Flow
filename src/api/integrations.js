@@ -7,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 export const InvokeLLM = async ({
   prompt,
   response_json_schema,
+  tool_use_schema,
   add_context_from_internet,
   company_url,
   knowledgeFileIds,
@@ -32,6 +33,7 @@ export const InvokeLLM = async ({
     body: JSON.stringify({
       prompt,
       response_json_schema,
+      tool_use_schema,
       add_context_from_internet,
       company_url,
       knowledgeFileIds,

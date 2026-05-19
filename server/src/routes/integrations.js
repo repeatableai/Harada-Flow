@@ -14,6 +14,8 @@ router.use(authenticate);
 const invokeLLMSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required'),
   response_json_schema: z.any().optional(),
+  // Strict tool_use schema — grammar-constrained output enforcement
+  tool_use_schema: z.any().optional(),
   add_context_from_internet: z.boolean().optional(),
   company_url: z.string().optional().nullable(),
   // Additional knowledge files to include as context
@@ -44,6 +46,7 @@ router.post('/llm', async (req, res, next) => {
     const result = await invokeLLM({
       prompt: data.prompt,
       response_json_schema: data.response_json_schema,
+      tool_use_schema: data.tool_use_schema,
       add_context_from_internet: data.add_context_from_internet,
       company_url: data.company_url,
       knowledgeFileIds: data.knowledgeFileIds,
@@ -84,6 +87,7 @@ router.post('/llm/stream', async (req, res) => {
     const result = await invokeLLM({
       prompt: data.prompt,
       response_json_schema: data.response_json_schema,
+      tool_use_schema: data.tool_use_schema,
       add_context_from_internet: data.add_context_from_internet,
       company_url: data.company_url,
       knowledgeFileIds: data.knowledgeFileIds,
