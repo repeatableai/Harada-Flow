@@ -288,11 +288,33 @@ Selected Deliverable: ${selectedDeliverable.name}
 Matrix Type: ${selectedDeliverable.type}
 ${company.company_url ? `Company URL: ${company.company_url}` : ''}
 
-Generate a minimum 8-prompt DCE (Deliverable Creation Engine) pack for creating this deliverable. Each prompt follows the DCE methodology which ensures world-class outputs through iterative refinement, expert validation, and comprehensive ecosystem thinking. You may generate more than 8 prompts if the deliverable's complexity warrants additional steps.
+Generate a DCE (Deliverable Creation Engine) prompt pack for creating this deliverable. Each prompt follows the DCE methodology which ensures world-class outputs through iterative refinement, expert validation, and comprehensive ecosystem thinking.
 
-IMPORTANT WORKFLOW CONTEXT: Before running any of these prompts, the user will have already pasted Block A (Always-On Engine Instructions — fonts, toggle, WCAG, MCQ protocol, context window management, frameworks) and Block B (Deliverable Interpretation Logic — SOW, KPI, strategy, training, legal document rules) into their Claude.ai session. Block A and Block B are ALREADY active in the session. Do NOT generate Block A or Block B content as prompt steps — they are handled separately by the application.
+═══════════════════════════════════════════════════
+STRUCTURAL REQUIREMENT — READ THIS FIRST
+═══════════════════════════════════════════════════
 
-Each generated prompt must be COMPLETE AND SELF-CONTAINED. The user will copy-paste each prompt into a separate AI session that already has Block A + Block B loaded. Each prompt must carry enough context for that session to execute — including the role context, deliverable name, and step-specific instructions. Reference "Block A rules" and "Block B rules" as already active rather than repeating their full text.
+Your output MUST follow this exact structure. No exceptions.
+
+1. Generate Prompts 1 through 6 as deliverable BUILD steps (spec, draft, QA, revisions, stress test, pre-mortem). If the deliverable needs more than 6 build steps, add additional numbered prompts (7, 8, 9...) for the extra build steps.
+
+2. The SECOND-TO-LAST prompt must ALWAYS be "Attending Asset Discovery" — a comprehensive ecosystem scan that identifies every supporting document, tool, form, training material, dashboard, and collateral the primary deliverable needs, followed by a complete Parallel Production Queue with self-contained prompts for every attending asset.
+
+3. The FINAL prompt must ALWAYS be "Portfolio Hub" — an interactive HTML Deliverable Navigation Dashboard (Kanban-style card layout) displaying every artifact produced in the engagement.
+
+Example valid structures:
+- Simple deliverable: Prompts 1-6 (build), Prompt 7 (Attending Asset Discovery), Prompt 8 (Portfolio Hub) = 8 total
+- Complex deliverable: Prompts 1-8 (build), Prompt 9 (Attending Asset Discovery), Prompt 10 (Portfolio Hub) = 10 total
+
+INVALID: Any output where the last two prompts are NOT "Attending Asset Discovery" and "Portfolio Hub" will be rejected.
+
+Do NOT generate Block A or Block B governance content as prompt steps — they are separate documents already loaded in the user's session.
+
+═══════════════════════════════════════════════════
+
+WORKFLOW CONTEXT: The user will have already pasted Block A (Always-On Engine Instructions) and Block B (Deliverable Interpretation Logic) into their Claude.ai session before running these prompts. Each generated prompt should reference Block A/B rules as active rather than repeating their full text.
+
+Each generated prompt must be COMPLETE AND SELF-CONTAINED. The user will copy-paste each prompt into a separate AI session that already has Block A + Block B loaded. Each prompt must carry enough context for that session to execute — including the role context, deliverable name, and step-specific instructions.
 
 ═══════════════════════════════════════════════════
 DCE UNIVERSAL RULES — EMBED ALL OF THESE IN EVERY PROMPT
@@ -463,18 +485,16 @@ PROMPT 8: Portfolio Hub — Deliverable Navigation Dashboard
 - This prompt should produce a COMPLETE, FUNCTIONAL HTML file — not a template, not a wireframe. The user pastes this prompt, the AI produces the working hub, the user adds their artifact links, done.
 
 ═══════════════════════════════════════════════════
-CRITICAL CONSTRAINTS
+REMINDER — VERIFY YOUR OUTPUT STRUCTURE BEFORE RETURNING
 ═══════════════════════════════════════════════════
 
-DO NOT generate Block A (Always-On Engine Instructions) or Block B (Deliverable Interpretation Logic) as prompt steps. They are separate governance documents already loaded in the user's session. Your job is ONLY to generate the deliverable creation prompts (Prompts 1-8+).
+Check your output against the STRUCTURAL REQUIREMENT at the top of this prompt:
+✓ The second-to-last prompt in your array is titled "Attending Asset Discovery" and contains a Parallel Production Queue
+✓ The final prompt in your array is titled "Portfolio Hub" and specifies an interactive HTML dashboard
+✓ No prompt contains Block A or Block B governance content
+✓ All preceding prompts are deliverable build steps
 
-PROMPT 7 is NON-NEGOTIABLE: It MUST include Attending Asset Discovery with a complete Parallel Production Queue file containing self-contained prompts for every identified attending asset. Do not replace this with an additional deliverable step.
-
-PROMPT 8 is NON-NEGOTIABLE: It MUST generate a Portfolio Hub — an interactive HTML Deliverable Navigation Dashboard. Do not replace this with an additional deliverable step.
-
-If the deliverable is complex enough to warrant more than 6 core build steps (Prompts 1-6), generate additional prompts BETWEEN Prompt 6 and Prompt 7. Prompts 7 (Attending Asset Discovery) and 8 (Portfolio Hub) are always the final two prompts regardless of total count.
-
-Each generated prompt should instruct the executing AI to follow Block A rules (Inter font, dark/light toggle, WCAG AA, MCQ protocol, context window management, frameworks) and Block B rules (document interpretation logic) — reference them as active in the session rather than repeating their full text.
+If your output does not match this structure, revise it before returning.
 
 ═══════════════════════════════════════════════════
 
