@@ -288,7 +288,7 @@ Selected Deliverable: ${selectedDeliverable.name}
 Matrix Type: ${selectedDeliverable.type}
 ${company.company_url ? `Company URL: ${company.company_url}` : ''}
 
-Generate an 8-prompt DCE (Deliverable Creation Engine) pack for creating this deliverable. Each prompt follows the DCE methodology which ensures world-class outputs through iterative refinement, expert validation, and comprehensive ecosystem thinking.
+Generate a minimum 8-prompt DCE (Deliverable Creation Engine) pack for creating this deliverable. Each prompt follows the DCE methodology which ensures world-class outputs through iterative refinement, expert validation, and comprehensive ecosystem thinking. You may generate more than 8 prompts if the deliverable's complexity warrants additional steps.
 
 IMPORTANT: Each generated prompt must be COMPLETE AND SELF-CONTAINED. The user will copy-paste each prompt into a separate AI session. Every prompt must carry enough context for that session to execute without referencing prior prompts. Embed the DCE rules, the role context, the deliverable name, and all relevant specifications directly inside each prompt's text.
 
@@ -336,7 +336,7 @@ HTML artifacts: mandatory light/dark theme toggle, top-right position, default d
 All frameworks applied without being asked: Conversion Equation, Pre-mortem, Expert Panel, Swim Lane ROI, 80/20, Theory of Constraints, Kaizen.
 
 ═══════════════════════════════════════════════════
-PROMPT STRUCTURE — GENERATE EXACTLY 8 PROMPTS
+PROMPT STRUCTURE — GENERATE A MINIMUM OF 8 PROMPTS
 ═══════════════════════════════════════════════════
 
 PROMPT 1: Context Distillation + Specification + Initial Time Study
@@ -779,7 +779,6 @@ CRITICAL QUALITY REQUIREMENT: Each prompt in the "prompt" field must be LONG and
             prompts: {
               type: "array",
               minItems: 8,
-              maxItems: 8,
               items: {
                 type: "object",
                 properties: {
