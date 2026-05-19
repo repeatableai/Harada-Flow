@@ -136,24 +136,6 @@ export async function invokeLLM({
 
     console.log(`Streaming complete: ${chunkCount} total chunks, ${content.length} total chars`);
 
-    // Check stop_reason — detect truncation before parsing
-    // Wrap in timeout to prevent hanging if finalMessage() stalls after a long stream
-    let stopReason = null;
-    try {
-      const finalMessage = await Promise.race([
-        stream.finalMessage(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('finalMessage timeout')), 15000))
-      ]);
-      stopReason = finalMessage?.stop_reason;
-      console.log(`Stop reason: ${stopReason}`);
-    } catch (fmError) {
-      console.warn(`Could not retrieve stop_reason: ${fmError.message}. Proceeding with content.`);
-    }
-    if (stopReason === 'max_tokens') {
-      console.error('OUTPUT TRUNCATED — hit max_tokens ceiling. Output length:', content.length);
-      throw new Error('Generation truncated: output exceeded token limit. Try reducing input context or splitting the request.');
-    }
-
     if (!content) {
       throw new Error('No response content from Anthropic');
     }
