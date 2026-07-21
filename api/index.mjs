@@ -34,7 +34,7 @@ app.use('/api/prompts', promptsRoutes);
 app.use('/api', promptsRoutes); // Mount prompt creation under /api/companies/:id/prompts
 app.use('/api/time-studies', timeStudiesRoutes);
 app.use('/api/organizations', organizationsRoutes);
-app.use('/api/departments', departmentsRoutes);
+app.use('/api', departmentsRoutes); // Handles both /organizations/:orgId/departments and /departments/:id
 app.use('/api/knowledge-files', knowledgeFilesRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/cui-scan', cuiScanRoutes);
